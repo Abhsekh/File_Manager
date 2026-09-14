@@ -1,8 +1,26 @@
 using System;
 using System.ComponentModel.Design;
+using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
+using System.Text;
 class Program
 {
+    static string[,] Commands =
+    {
+        {"help", "Single", "Non-Flagable", "Arguementable", "", ""},
+        {"show", "Married", "Flagable", "Non-Arguementable", "0", ""},
+        {"drive", "Single", "Non-Flagable", "Non-Arguementable", "0", ""},
+        {"drives", "Single", "Non-Flagable", "Non-Arguementable", "0", ""}
+    };
+
+    static string[,] Tags =
+    {
+        {"-h", "Show hidden Directories"},
+        {"-f", "Show Files"},
+        {"-hf", "Show Files and Directories"}
+    };
+
     static void ShowFolders(string dir, int ToggleHiddenFolder = 0, int ToggleFiles = 0)
     {
         try {
@@ -40,14 +58,29 @@ class Program
 
     static void Help(string help_cmd)
     {
-        if (help_cmd == "show")
+        string message = "";
+        switch (help_cmd)
         {
-            Console.WriteLine("Helping with the show!");
+            case "show":
+                message = "Helping with the show!";  
+                break;
+            case "Bettle":
+                message = "Helping with the Bettle!";
+                break;    
+            case "Not a Flagable":
+                message = "Not a Taggable Command";
+                break; 
+            case "Not a Tag":
+                message = "Not a tag supposed";
+                break;    
+            case "Use Default":
+                message = "Using Defaults";
+                break;          
+            default:
+                message = "";
+                break;
         }
-        else if (help_cmd == "Bettle")
-        {
-            Console.WriteLine("Helping with the Bettle!");
-        }
+        Console.WriteLine(message);
     }
 
     static void ShowFolderCycle(string flag, string dir)
@@ -78,80 +111,167 @@ class Program
 
     static void TakeCommands()
     {
-        string command;
-        do
+        while (true)
         {
             Console.Write("Bettle > ");
-            command = Console.ReadLine();
-            TakeActions(command);
+            string command = Console.ReadLine();
+            if (command == null)
+            {
+                break;
+            }
+
+            if (!ValidateCommands(command))
+                continue;
+
+            string[] parts = SplitCommand(command);
+            if (parts.Length > 0 && IsExitCommand(parts[0]))
+            {
+                break;
+            }
         }
-        while (!(command == "exit" || command == "quit" || command == "kill"));
         Console.WriteLine("Bettle Closing!");
     }
 
-    static void TakeActions(string command)
+    static bool ValidateCommands(string command)
     {
-        int Flagged = 0;
-        string[] parts = command.Split(' ');
-        if (command == "" || parts.Length < 1)
+        string[] parts = SplitCommand(command);
+        if (parts.Length == 0)
+        {
+            return false;
+        }
+
+        string commandName = parts[0].ToLowerInvariant();
+        int CommandId = -1;
+        for (int i = 0; i < Commands.GetLength(0); i++)
+        {
+            if (Commands[i, 0] == commandName)
+            {
+                CommandId = i;
+                break;
+            }
+        }
+
+        if (CommandId == -1)
         {
             Help("Bettle");
+            return false;
         }
-        else{
-            if (parts[0] == "show")
+
+        if (commandName == "show")
+        {
+            if (parts.Length < 2)
             {
-                if (parts.Length < 2)
+                Help("show");
+                return false;
+            }
+
+            if (parts[1].StartsWith("-"))
+            {
+                bool validTag = false;
+                for (int i = 0; i < Tags.GetLength(0); i++)
                 {
-                    Help("show");
-                }
-                else
-                {
-                    if (parts[1].Replace(" ", "") == "")
+                    if (Tags[i, 0] == parts[1])
                     {
-                        Help("show");
+                        validTag = true;
+                        break;
                     }
-                    else{
-                        Flagged = (parts[1].Contains("-")) ? 1 : 0;
-                        if (Flagged == 1)
-                        {
-                            if (parts.Length < 3)
-                            {
-                                Help("show");
-                            }
-                            else
-                            {
-                                if (parts[2].Replace(" ", "") == "")
-                                {
-                                    Help("show");
-                                }
-                                else{
-                                    ShowFolderCycle(parts[1], parts[2]);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            if (parts.Length > 2)
-                            {
-                                Help("Syntax Error");
-                            }
-                            ShowFolderCycle("", parts[1]);
-                        }
-                    }
+                }
+
+                if (!validTag || parts.Length != 3)
+                {
+                    Help(!validTag ? "Not a Tag" : "Syntax Error");
+                    return false;
                 }
             }
-            else if (parts[0] == "drive" || parts[0] == "drive" || parts[0] == "Drive" || parts[0] == "Drives")
+            else if (parts.Length != 2)
             {
-                DriveInfo[] drives = DriveInfo.GetDrives();
+                Help("Syntax Error");
+                return false;
+            }
+        }
 
-                foreach (DriveInfo drive in drives)
+        if (Commands[CommandId, 1] == "Single" && parts.Length != 1)
+        {
+            Help("Syntax Error");
+            return false;
+        }
+
+        return true;
+    }
+
+    static string[] SplitCommand(string command)
+    {
+        List<string> parts = new List<string>();
+        StringBuilder part = new StringBuilder();
+        bool inQuotes = false;
+
+        foreach (char character in command)
+        {
+            if (character == '"')
+            {
+                inQuotes = !inQuotes;
+            }
+            else if (char.IsWhiteSpace(character) && !inQuotes)
+            {
+                if (part.Length > 0)
                 {
-                    Console.WriteLine(drive.Name);
+                    parts.Add(part.ToString());
+                    part.Clear();
                 }
             }
             else
             {
-                Console.WriteLine("Control your horses! And slow down the pace.");
+                part.Append(character);
+            }
+        }
+
+        if (inQuotes)
+        {
+            return Array.Empty<string>();
+        }
+
+        if (part.Length > 0)
+        {
+            parts.Add(part.ToString());
+        }
+
+        return parts.ToArray();
+    }
+
+    static bool IsExitCommand(string command)
+    {
+        return command == "exit" || command == "quit" || command == "kill";
+    }
+
+    static void TakeActions(string command)
+    {
+        string[] parts = SplitCommand(command);
+        if (parts.Length == 0)
+        {
+            Help("Bettle");
+        }
+        else if (parts[0].ToLowerInvariant() == "help")
+        {
+            Help("Bettle");
+        }
+        else if (parts[0].ToLowerInvariant() == "show")
+        {
+            if (parts[1].StartsWith("-"))
+            {
+                ShowFolderCycle(parts[1], parts[2]);
+            }
+            else
+            {
+                ShowFolderCycle("", parts[1]);
+            }
+        }
+        else if (parts[0].ToLowerInvariant() == "drive" || parts[0].ToLowerInvariant() == "drives")
+        {
+            DriveInfo[] drives = DriveInfo.GetDrives();
+
+            foreach (DriveInfo drive in drives)
+            {
+                Console.WriteLine(drive.Name);
             }
         }
     }
