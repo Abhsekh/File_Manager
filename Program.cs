@@ -1,18 +1,38 @@
 using System;
 using System.ComponentModel.Design;
-using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Text;
+using System.Transactions;
 class Program
 {
-    static string[,] Commands =
+    static string[] Commands = {"help", "show"};
+
+    public class CommandClass
     {
-        {"help", "Single", "Non-Flagable", "Arguementable", "", ""},
-        {"show", "Married", "Flagable", "Non-Arguementable", "0", ""},
-        {"drive", "Single", "Non-Flagable", "Non-Arguementable", "0", ""},
-        {"drives", "Single", "Non-Flagable", "Non-Arguementable", "0", ""}
-    };
+        int Id;
+        public string Name;
+        bool ArgumentAble;
+        bool TagAble;
+        public List<string> TagsId = new();
+        public Action<Instructions> Command;
+
+        public Commands(int Id, string Name, bool ArgumentAble, bool TagAble, List<string> TagsId, Action<Instructions> cmd)
+        {
+            this.Id = Id;
+            this.Name = Name;
+            this.ArgumentAble = ArgumentAble;
+            this.TagAble = TagAble;
+            this.TagsId = TagsId;
+            this.Command = cmd;
+        }
+    }
+
+    List<CommandClass> Commandslist = 
+    [
+        new CommandClass(1,"show", true, true, ["-h", "-f", "-hf"], ShowFolders),
+        new CommandClass(2,"help", true, false, [], Help)
+    ];
 
     static string[,] Tags =
     {
@@ -20,6 +40,149 @@ class Program
         {"-f", "Show Files"},
         {"-hf", "Show Files and Directories"}
     };
+
+    public class Instructions
+    {
+        // Current Id
+        int CurrentId = 0;
+        // Constructor for Instructions
+        public Instructions()
+        {
+            _Id = ++CurrentId;
+        }
+
+        private int _Id;
+
+        public int Id
+        {
+            get{ return _Id;}
+        }
+        
+        // Is a valid command or not
+        private int _IsCommand;
+
+        // get and set command
+        public int IsCommand
+        {
+            get
+            { return _IsCommand;}
+            set
+            {
+                if (value == 0 || value == 1)
+                {
+                    _IsCommand = value;
+                }
+            }
+        }
+
+        // Command ID (-1) if not a command
+        private int _CommandID;
+
+        // get and set command
+        public int CommandID
+        {
+            get
+            { return _CommandID;}
+            set
+            {
+                if (value >= -1)
+                {
+                    _CommandID = value;
+                }
+            }
+        }
+
+        // Is Tag able or not
+        private int _TagAble;
+
+        // get and set command
+        public int TagAble
+        {
+            get
+            { return _TagAble;}
+            set
+            {
+                if (value == 0 || value == 1)
+                {
+                    _TagAble = value;
+                }
+            }
+        }
+        // Is Arguement able or not
+        private int _ArguementAble;
+
+        // get and set command
+        public int ArguementAble
+        {
+            get
+            { return _ArguementAble;}
+            set
+            {
+                if (value == 0 || value == 1)
+                {
+                    _ArguementAble = value;
+                }
+            }
+        }
+        // Counts the number of Tag
+        private int _TagCount;
+
+        // get and set command
+        public int TagCount
+        {
+            get
+            { return _TagCount;}
+            set
+            {
+                if (value >= 0)
+                {
+                    _TagCount = value;
+                }
+            }
+        }
+        // Counts the number of Arguments
+        private int _ArgumentsCount;
+
+        // get and set command
+        public int ArgumentsCount
+        {
+            get
+            { return _ArgumentsCount;}
+            set
+            {
+                if (value >= 0)
+                {
+                    _ArgumentsCount = value;
+                }
+            }
+        }
+        // List of the Tags of int data type
+        private List<string> _TagsID = new();
+
+        // get and set command
+        public List<string> TagsID
+        {
+            get
+            { return _TagsID;}
+            set
+            {
+                _TagsID = value;
+            }
+        }
+        // List of the Agruments of string data type
+        private List<string> _Arguements = new();
+
+        // get and set command
+        public List<string> Arguements
+        {
+            get
+            { return _Arguements;}
+            set
+            {
+                _Arguements = value;
+            }
+        }
+    }
 
     static void ShowFolders(string dir, int ToggleHiddenFolder = 0, int ToggleFiles = 0)
     {
@@ -68,7 +231,10 @@ class Program
                 message = "Helping with the Bettle!";
                 break;    
             case "Not a Flagable":
-                message = "Not a Taggable Command";
+                message = "Not a Tagable Command";
+                break; 
+            case "Not a Arguementable":
+                message = "Not an Arguementable Command";
                 break; 
             case "Not a Tag":
                 message = "Not a tag supposed";
@@ -111,169 +277,163 @@ class Program
 
     static void TakeCommands()
     {
-        while (true)
+        string command;
+        do
         {
             Console.Write("Bettle > ");
-            string command = Console.ReadLine();
-            if (command == null)
-            {
-                break;
-            }
-
-            if (!ValidateCommands(command))
-                continue;
-
-            string[] parts = SplitCommand(command);
-            if (parts.Length > 0 && IsExitCommand(parts[0]))
-            {
-                break;
-            }
+            command = Console.ReadLine().ToLower();
+            TakeActions(ValidateCommands(command));
         }
+        while (!(command == "exit" || command == "quit" || command == "kill"));
         Console.WriteLine("Bettle Closing!");
     }
 
-    static bool ValidateCommands(string command)
+    static Instructions ValidateCommands(string command)
     {
-        string[] parts = SplitCommand(command);
-        if (parts.Length == 0)
+        // Converts "     Show   -h    -g    dir   " into "show -h -g dir"
+        string[] _Parts = command.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        command = string.Join(" ", _Parts);
+
+        // divides the command into sections 
+        string[] Parts = command.Split(" ");
+        foreach (string item in Parts)
         {
-            return false;
+            Console.WriteLine(item);
         }
 
-        string commandName = parts[0].ToLowerInvariant();
-        int CommandId = -1;
-        for (int i = 0; i < Commands.GetLength(0); i++)
+        // Checking whether the tags or arguemnt is present or not
+        int ArgumentsCount = 0;
+        int TagCount = 0; 
+        int IsCommand = 0; // 1 for Command and 0 for not a command
+        int CommandID = -1;
+        CommandClass? CurrentCommand; // A null accepting Current Command of data type CommandClass
+
+        // Checks for Empty Commands
+        if (Parts[0] == "")
         {
-            if (Commands[i, 0] == commandName)
+            IsCommand = 0; // Not a command
+        }
+        else // condition if the command is not empty or just spaces
+        {
+            // checking whether the command is present in the commands list or not
+            CurrentCommand = Commandslist.FirstOrDefault(c => c.Name == Parts[0]);
+
+            // checking whether the command is actual command or not
+            if (CurrentCommand != null)
             {
-                CommandId = i;
-                break;
+                CommandID = CurrentCommand.Id;
             }
+            IsCommand = (CommandID == -1) ? 0 : 1;
         }
 
-        if (CommandId == -1)
-        {
-            Help("Bettle");
-            return false;
-        }
+        // Check whether the IsCommand is on or Parts.Length is greater than 1 so to access them.
+        if (IsCommand == 1 && Parts.Length > 1){ 
 
-        if (commandName == "show")
-        {
-            if (parts.Length < 2)
+            // Checks for the first Parts whether it is a tag or not
+            if(Parts[IsCommand].StartsWith("-"))
             {
-                Help("show");
-                return false;
-            }
+                I.TagsID.Add(Parts[IsCommand]);
+                TagCount++;
+            } 
 
-            if (parts[1].StartsWith("-"))
+            // Checking the count of Tags
+            for (int i = IsCommand; i < Parts.Length; i++)
             {
-                bool validTag = false;
-                for (int i = 0; i < Tags.GetLength(0); i++)
+                // Checks whether the consecutive`s one are having the tag
+                if (Parts[i-1].StartsWith("-") && Parts[i].StartsWith("-"))
                 {
-                    if (Tags[i, 0] == parts[1])
-                    {
-                        validTag = true;
-                        break;
-                    }
-                }
-
-                if (!validTag || parts.Length != 3)
-                {
-                    Help(!validTag ? "Not a Tag" : "Syntax Error");
-                    return false;
-                }
-            }
-            else if (parts.Length != 2)
-            {
-                Help("Syntax Error");
-                return false;
-            }
-        }
-
-        if (Commands[CommandId, 1] == "Single" && parts.Length != 1)
-        {
-            Help("Syntax Error");
-            return false;
-        }
-
-        return true;
-    }
-
-    static string[] SplitCommand(string command)
-    {
-        List<string> parts = new List<string>();
-        StringBuilder part = new StringBuilder();
-        bool inQuotes = false;
-
-        foreach (char character in command)
-        {
-            if (character == '"')
-            {
-                inQuotes = !inQuotes;
-            }
-            else if (char.IsWhiteSpace(character) && !inQuotes)
-            {
-                if (part.Length > 0)
-                {
-                    parts.Add(part.ToString());
-                    part.Clear();
+                    I.TagsID.Add(Parts[i]);
+                    TagCount++;
                 }
             }
-            else
+
+            // Checks Validity of Command`s TagAble
+            if (TagCount > 0 && !(CurrentCommand.TagAble))
             {
-                part.Append(character);
+                Help("Not a Flagable");
+            }
+
+            // Checking the count of arguements which are instered
+            for (int i = IsCommand + TagCount; i < Parts.Length; i++) 
+            {
+                if (!(Parts[i].StartsWith("-")))
+                {
+                    I.Arguements.Add(Parts[i]);
+                    ArgumentsCount++;
+                }
+                else
+                {
+                    I.Arguements.Clear();
+                    Help("Invalid Arguement"); 
+                    break;
+                }
+            }
+
+            // Checks Validity of Command`s ArgumentAble
+            if (ArgumentsCount > 0 && !(CurrentCommand.ArgumentAble))
+            {
+                Help("Not a Arguementable");
             }
         }
 
-        if (inQuotes)
-        {
-            return Array.Empty<string>();
-        }
+        Instructions I = new();
 
-        if (part.Length > 0)
-        {
-            parts.Add(part.ToString());
-        }
+        // Filling the values of object
+        I.IsCommand = IsCommand;
+        I.CommandID = CommandID;
+        I.TagAble = (TagCount != 0) ? 1 : 0;
+        I.ArguementAble = (ArgumentsCount != 0) ? 1 : 0;
+        I.TagCount = TagCount;
+        I.ArgumentsCount = ArgumentsCount;
 
-        return parts.ToArray();
+        return I;
     }
 
-    static bool IsExitCommand(string command)
+    static void TakeActions(Instructions I)
     {
-        return command == "exit" || command == "quit" || command == "kill";
-    }
+        Console.WriteLine("ID: " + I.Id);
+        Console.WriteLine("Is a Command: " + I.IsCommand);
+        Console.WriteLine("Command ID: " + I.CommandID);
+        Console.WriteLine("Is Tag-able: " + I.TagAble);
+        Console.WriteLine("Tags Count: " + I.TagCount);
+        Console.WriteLine("Is Arguement-able: " + I.ArguementAble);
+        Console.WriteLine("Arguements Count: " + I.ArgumentsCount);
 
-    static void TakeActions(string command)
-    {
-        string[] parts = SplitCommand(command);
-        if (parts.Length == 0)
-        {
-            Help("Bettle");
-        }
-        else if (parts[0].ToLowerInvariant() == "help")
-        {
-            Help("Bettle");
-        }
-        else if (parts[0].ToLowerInvariant() == "show")
-        {
-            if (parts[1].StartsWith("-"))
+        // Prints every element of the Tags
+        if (I.TagAble == 1){
+            Console.Write("Tags: ");
+            for (int i = 0; i < I.TagsID.Count; i++)
             {
-                ShowFolderCycle(parts[1], parts[2]);
-            }
-            else
-            {
-                ShowFolderCycle("", parts[1]);
+                string item = I.TagsID[i];
+                Console.Write(item);
+                if (i != I.TagsID.Count - 1)
+                {
+                    Console.Write(", ");
+                }
+                else
+                {
+                    Console.WriteLine();
+                }
             }
         }
-        else if (parts[0].ToLowerInvariant() == "drive" || parts[0].ToLowerInvariant() == "drives")
-        {
-            DriveInfo[] drives = DriveInfo.GetDrives();
-
-            foreach (DriveInfo drive in drives)
+        
+        // Prints every element of the Arguements
+        if (I.ArguementAble == 1){
+            Console.Write("Arguements: ");
+            for (int i = 0; i < I.Arguements.Count; i++)
             {
-                Console.WriteLine(drive.Name);
+                string item = I.Arguements[i];
+                Console.Write(item);
+                if (i != I.Arguements.Count - 1)
+                {
+                    Console.Write(", ");
+                }
+                else
+                {
+                    Console.WriteLine();
+                }
             }
-        }
+        }   
     }
 
     static void Main()
@@ -282,4 +442,3 @@ class Program
     }
 
 }
-
