@@ -6,18 +6,16 @@ using System.Runtime.InteropServices;
 using System.Transactions;
 class Program
 {
-    static string[] Commands = {"help", "show"};
-
     public class CommandClass
     {
-        int Id;
+        public int Id;
         public string Name;
-        bool ArgumentAble;
-        bool TagAble;
+        public bool ArgumentAble;
+        public bool TagAble;
         public List<string> TagsId = new();
         public Action<Instructions> Command;
 
-        public Commands(int Id, string Name, bool ArgumentAble, bool TagAble, List<string> TagsId, Action<Instructions> cmd)
+        public CommandClass(int Id, string Name, bool ArgumentAble, bool TagAble, List<string> TagsId, Action<Instructions> cmd)
         {
             this.Id = Id;
             this.Name = Name;
@@ -28,23 +26,18 @@ class Program
         }
     }
 
-    List<CommandClass> Commandslist = 
+    static List<CommandClass> Commandslist = 
     [
-        new CommandClass(1,"show", true, true, ["-h", "-f", "-hf"], ShowFolders),
-        new CommandClass(2,"help", true, false, [], Help)
+        new CommandClass(1,"show", true, true, ["-h", "-f"], ShowFolders),
+        new CommandClass(2,"help", true, false, [], Help),
+        new CommandClass(3,"pwd", false, false, [], CurrentDirectory),
+        new CommandClass(4,"create", true, true, ["-h", "-f"], MakeDirectory)
     ];
-
-    static string[,] Tags =
-    {
-        {"-h", "Show hidden Directories"},
-        {"-f", "Show Files"},
-        {"-hf", "Show Files and Directories"}
-    };
 
     public class Instructions
     {
         // Current Id
-        int CurrentId = 0;
+        static int CurrentId = 0;
         // Constructor for Instructions
         public Instructions()
         {
@@ -182,13 +175,69 @@ class Program
                 _Arguements = value;
             }
         }
+
+        public string Message = "";
+
+        public CommandClass? CommandObject;
     }
 
-    static void ShowFolders(string dir, int ToggleHiddenFolder = 0, int ToggleFiles = 0)
+    static void ShowFolders(Instructions I)
     {
+        string dir = "";
+        int ToggleHiddenDirectories = 0;
+        int ToggleFiles = 0;
+
+        // Tags toggler and checker
+        foreach (string tag in I.TagsID)
+        {
+            switch (tag)
+            {
+                case "-h":
+                    ToggleHiddenDirectories = 1;
+                    break;
+
+                case "-f":
+                    ToggleFiles = 1;
+                    break;
+                
+                default:
+                    I.Message = "Invalid Tags";
+                    return;
+            }
+        }
+
+        // Arguements Count checker
+        if (I.ArgumentsCount > 1)
+        {
+            I.Message = "To many Arguements";
+            return;
+        }
+        else
+        {
+            if (I.ArguementAble == 1 && I.ArgumentsCount == 1)
+            {
+                dir = I.Arguements[0];
+            }
+            else
+            {
+                dir = Directory.GetCurrentDirectory();
+            }          
+        }
         try {
-            string[] folders = {""};
-            folders = Directory.GetDirectories(dir);
+            string[] folders;
+            if (ToggleFiles == 0)
+            {
+                folders = Directory.GetDirectories(dir);
+            }
+            else
+            {
+                folders = Directory.GetFiles(dir);
+            }   
+
+            if (folders.Length == 0)
+            {
+                Console.WriteLine("No folders");
+            }            
 
             foreach (string folder in folders)
             {
@@ -199,11 +248,11 @@ class Program
                 {
                     Console.WriteLine(Path.GetFileName(folder));
                 }
-                else if (HiddenFolder == 1 && ToggleHiddenFolder == 0)
+                else if (HiddenFolder == 1 && ToggleHiddenDirectories == 0)
                 {
                     continue;
                 }
-                else if (HiddenFolder == 1 && ToggleHiddenFolder == 1)
+                else if (HiddenFolder == 1 && ToggleHiddenDirectories == 1)
                 {
                     Console.WriteLine(Path.GetFileName(folder));
                 }
@@ -219,8 +268,9 @@ class Program
         }
     }
 
-    static void Help(string help_cmd)
+    static void Help(Instructions I)
     {
+        string help_cmd = I.Message;
         string message = "";
         switch (help_cmd)
         {
@@ -249,64 +299,142 @@ class Program
         Console.WriteLine(message);
     }
 
-    static void ShowFolderCycle(string flag, string dir)
+    static void CurrentDirectory(Instructions I)
     {
-        if (flag == "")
+        // Checks whether the Tags are present any how
+        if (I.TagAble == 1 || I.TagCount != 0 || I.TagsID.Count != 0)
         {
-            ShowFolders(dir);
+            I.Message = "Not a Flagable";
+            return;
+        }
+        // Checks whether any arguemtent is present or not
+        else if (I.ArguementAble == 1 || I.ArgumentsCount != 0 || I.Arguements.Count != 0)
+        {
+            I.Message = "Not a Arguementable";
+            return;
         }
         else
         {
-            switch (flag)
+            Console.WriteLine(Directory.GetCurrentDirectory());
+        }    
+    }
+
+    static void MakeDirectory(Instructions I)
+    {
+        int ToggleHiddenDirectory = 0;
+        int ToggleFile = 0;
+
+        // Tags toggler and checker
+        foreach (string tag in I.TagsID)
+        {
+            switch (tag)
             {
                 case "-h":
-                    ShowFolders(dir, 1);
+                    ToggleHiddenDirectory = 1;
                     break;
+
                 case "-f":
-                    ShowFolders(dir);
+                    ToggleFile = 1;
                     break;
-                case "-hf":
-                    ShowFolders(dir, 1);
-                    break;
+                
                 default:
-                    Help("show");
-                    break;
+                    I.Message = "Invalid Tags";
+                    return;
+            }
+        }
+
+        for (int i = 0; i < I.Arguements.Count; i++)
+        {
+            try {
+                string file;
+
+                // If the passed argument is with a token & (for creating a file)
+                if (I.Arguements[i].StartsWith("&"))
+                {
+                    // Combines current directory with file name and pass it on File Create
+                    if (ToggleFile == 0)
+                    {    
+                        file = Path.Combine(Directory.GetCurrentDirectory(), I.Arguements[i].Substring(1));
+                        File.Create(file).Dispose();
+                        Console.WriteLine(I.Arguements[i].Substring(1) + " Created!");
+                    }
+                    else
+                    {
+                        file = Path.Combine(Directory.GetCurrentDirectory(), I.Arguements[i].Substring(1));
+                        Console.WriteLine(Directory.CreateDirectory(file) + " created!");
+                    }
+                }
+                else
+                {
+                    if (ToggleFile == 0)
+                    {
+                        file = Path.Combine(Directory.GetCurrentDirectory(), I.Arguements[i]);
+                        Console.WriteLine(Directory.CreateDirectory(file) + " created!");
+                    }
+                    else
+                    {
+                        file = Path.Combine(Directory.GetCurrentDirectory(), I.Arguements[i]);
+                        File.Create(file).Dispose();
+                        Console.WriteLine(I.Arguements[i] + " Created!");
+                    }
+                }
+
+                if (ToggleHiddenDirectory == 1)
+                {
+                    File.SetAttributes(file, FileAttributes.Hidden);
+                }
+                
+            }
+            catch (UnauthorizedAccessException)
+            {
+                Console.WriteLine("Access denied.");
+            }
+            catch (IOException)
+            {
+                Console.WriteLine("File Already Exists!");
             }
         }
     }
 
     static void TakeCommands()
     {
-        string command;
+        string? command;
         do
         {
             Console.Write("Bettle > ");
-            command = Console.ReadLine().ToLower();
-            TakeActions(ValidateCommands(command));
+            command = Console.ReadLine();
+            if (command == "exit" || command == "quit" || command == "kill")
+                break;
+            if (command != null)
+            {
+                TakeActions(ValidateCommands(command));
+            }
+            else
+            {
+                continue;
+            }
         }
-        while (!(command == "exit" || command == "quit" || command == "kill"));
+        while (true);
         Console.WriteLine("Bettle Closing!");
     }
 
     static Instructions ValidateCommands(string command)
     {
+        Instructions I = new();
+
         // Converts "     Show   -h    -g    dir   " into "show -h -g dir"
         string[] _Parts = command.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         command = string.Join(" ", _Parts);
 
         // divides the command into sections 
         string[] Parts = command.Split(" ");
-        foreach (string item in Parts)
-        {
-            Console.WriteLine(item);
-        }
 
         // Checking whether the tags or arguemnt is present or not
         int ArgumentsCount = 0;
         int TagCount = 0; 
         int IsCommand = 0; // 1 for Command and 0 for not a command
         int CommandID = -1;
-        CommandClass? CurrentCommand; // A null accepting Current Command of data type CommandClass
+        CommandClass? CurrentCommand = null; // A null accepting Current Command of data type CommandClass
 
         // Checks for Empty Commands
         if (Parts[0] == "")
@@ -316,67 +444,73 @@ class Program
         else // condition if the command is not empty or just spaces
         {
             // checking whether the command is present in the commands list or not
-            CurrentCommand = Commandslist.FirstOrDefault(c => c.Name == Parts[0]);
+            CurrentCommand = Commandslist.FirstOrDefault(c => c.Name == Parts[0].ToLower());
 
             // checking whether the command is actual command or not
             if (CurrentCommand != null)
             {
                 CommandID = CurrentCommand.Id;
             }
+            else if (CurrentCommand == null)
+            {
+                I.Message = "Not a Command";
+            }
             IsCommand = (CommandID == -1) ? 0 : 1;
         }
 
-        // Check whether the IsCommand is on or Parts.Length is greater than 1 so to access them.
-        if (IsCommand == 1 && Parts.Length > 1){ 
+        if (CurrentCommand != null){    
+            // Check whether the IsCommand is on or Parts.Length is greater than 1 so to access them.
+            if (IsCommand == 1 && Parts.Length > 1){ 
 
-            // Checks for the first Parts whether it is a tag or not
-            if(Parts[IsCommand].StartsWith("-"))
-            {
-                I.TagsID.Add(Parts[IsCommand]);
-                TagCount++;
-            } 
-
-            // Checking the count of Tags
-            for (int i = IsCommand; i < Parts.Length; i++)
-            {
-                // Checks whether the consecutive`s one are having the tag
-                if (Parts[i-1].StartsWith("-") && Parts[i].StartsWith("-"))
+                // Checks for the first Parts whether it is a tag or not
+                if(Parts[IsCommand].StartsWith("-"))
                 {
-                    I.TagsID.Add(Parts[i]);
+                    I.TagsID.Add(Parts[IsCommand]);
                     TagCount++;
-                }
-            }
+                } 
 
-            // Checks Validity of Command`s TagAble
-            if (TagCount > 0 && !(CurrentCommand.TagAble))
-            {
-                Help("Not a Flagable");
-            }
-
-            // Checking the count of arguements which are instered
-            for (int i = IsCommand + TagCount; i < Parts.Length; i++) 
-            {
-                if (!(Parts[i].StartsWith("-")))
+                // Checking the count of Tags
+                for (int i = IsCommand; i < Parts.Length; i++)
                 {
-                    I.Arguements.Add(Parts[i]);
-                    ArgumentsCount++;
+                    // Checks whether the consecutive`s one are having the tag
+                    if (Parts[i-1].StartsWith("-") && Parts[i].StartsWith("-"))
+                    {
+                        I.TagsID.Add(Parts[i]);
+                        TagCount++;
+                    }
                 }
-                else
-                {
-                    I.Arguements.Clear();
-                    Help("Invalid Arguement"); 
-                    break;
-                }
-            }
 
-            // Checks Validity of Command`s ArgumentAble
-            if (ArgumentsCount > 0 && !(CurrentCommand.ArgumentAble))
-            {
-                Help("Not a Arguementable");
+                // Checks Validity of Command`s TagAble
+                if (TagCount > 0 && !(CurrentCommand.TagAble))
+                {
+                    I.Message = "Not a Flagable";
+                }
+
+                // Checking the count of arguements which are instered
+                for (int i = IsCommand + TagCount; i < Parts.Length; i++) 
+                {
+                    if (!(Parts[i].StartsWith("-")))
+                    {
+                        I.Arguements.Add(Parts[i]);
+                        ArgumentsCount++;
+                    }
+                    else
+                    {
+                        I.Arguements.Clear();
+                        I.ArguementAble = 0;
+                        I.ArgumentsCount = 0;
+                        I.Message = "Invalid Arguement";
+                        break;
+                    }
+                }
+
+                // Checks Validity of Command`s ArgumentAble
+                if (ArgumentsCount > 0 && !(CurrentCommand.ArgumentAble))
+                {
+                    I.Message = "Not a Arguementable";
+                }
             }
         }
-
-        Instructions I = new();
 
         // Filling the values of object
         I.IsCommand = IsCommand;
@@ -385,55 +519,18 @@ class Program
         I.ArguementAble = (ArgumentsCount != 0) ? 1 : 0;
         I.TagCount = TagCount;
         I.ArgumentsCount = ArgumentsCount;
+        I.CommandObject = CurrentCommand;
 
         return I;
     }
 
     static void TakeActions(Instructions I)
     {
-        Console.WriteLine("ID: " + I.Id);
-        Console.WriteLine("Is a Command: " + I.IsCommand);
-        Console.WriteLine("Command ID: " + I.CommandID);
-        Console.WriteLine("Is Tag-able: " + I.TagAble);
-        Console.WriteLine("Tags Count: " + I.TagCount);
-        Console.WriteLine("Is Arguement-able: " + I.ArguementAble);
-        Console.WriteLine("Arguements Count: " + I.ArgumentsCount);
-
-        // Prints every element of the Tags
-        if (I.TagAble == 1){
-            Console.Write("Tags: ");
-            for (int i = 0; i < I.TagsID.Count; i++)
-            {
-                string item = I.TagsID[i];
-                Console.Write(item);
-                if (i != I.TagsID.Count - 1)
-                {
-                    Console.Write(", ");
-                }
-                else
-                {
-                    Console.WriteLine();
-                }
-            }
+        if (I.CommandObject == null)
+        {
+            return;
         }
-        
-        // Prints every element of the Arguements
-        if (I.ArguementAble == 1){
-            Console.Write("Arguements: ");
-            for (int i = 0; i < I.Arguements.Count; i++)
-            {
-                string item = I.Arguements[i];
-                Console.Write(item);
-                if (i != I.Arguements.Count - 1)
-                {
-                    Console.Write(", ");
-                }
-                else
-                {
-                    Console.WriteLine();
-                }
-            }
-        }   
+        I.CommandObject.Command(I); 
     }
 
     static void Main()
