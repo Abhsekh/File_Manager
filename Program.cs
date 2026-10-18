@@ -163,16 +163,16 @@ class Program
             }
         }
         // List of the Agruments of string data type
-        private List<string> _Arguements = new();
+        private List<string> _Arguments = new();
 
         // get and set command
-        public List<string> Arguements
+        public List<string> Arguments
         {
             get
-            { return _Arguements;}
+            { return _Arguments;}
             set
             {
-                _Arguements = value;
+                _Arguments = value;
             }
         }
 
@@ -206,17 +206,17 @@ class Program
             }
         }
 
-        // Arguements Count checker
+        // Arguments Count checker
         if (I.ArgumentsCount > 1)
         {
-            I.Message = "To many Arguements";
+            I.Message = "To many Arguments";
             return;
         }
         else
         {
             if (I.ArguementAble == 1 && I.ArgumentsCount == 1)
             {
-                dir = I.Arguements[0];
+                dir = I.Arguments[0];
             }
             else
             {
@@ -234,9 +234,16 @@ class Program
                 folders = Directory.GetFiles(dir);
             }   
 
-            if (folders.Length == 0)
+            if (folders.Length == 0 || folders == null)
             {
-                Console.WriteLine("No folders");
+                if (ToggleFiles == 0)
+                {
+                    Console.WriteLine("No folders");
+                }
+                else
+                {
+                    Console.WriteLine("No files");
+                }
             }            
 
             foreach (string folder in folders)
@@ -258,13 +265,13 @@ class Program
                 }
             }
         }
-        catch (DirectoryNotFoundException)
+        catch (DirectoryNotFoundException em)
         {
-            Console.WriteLine("Directory does not exist.");
+            Console.WriteLine(em.Message);
         }
-        catch (UnauthorizedAccessException)
+        catch (UnauthorizedAccessException em)
         {
-            Console.WriteLine("Access denied.");
+            Console.WriteLine(em.Message);
         }
     }
 
@@ -308,7 +315,7 @@ class Program
             return;
         }
         // Checks whether any arguemtent is present or not
-        else if (I.ArguementAble == 1 || I.ArgumentsCount != 0 || I.Arguements.Count != 0)
+        else if (I.ArguementAble == 1 || I.ArgumentsCount != 0 || I.Arguments.Count != 0)
         {
             I.Message = "Not a Arguementable";
             return;
@@ -343,24 +350,24 @@ class Program
             }
         }
 
-        for (int i = 0; i < I.Arguements.Count; i++)
+        for (int i = 0; i < I.Arguments.Count; i++)
         {
             try {
                 string file;
 
                 // If the passed argument is with a token & (for creating a file)
-                if (I.Arguements[i].StartsWith("&"))
+                if (I.Arguments[i].StartsWith("&"))
                 {
                     // Combines current directory with file name and pass it on File Create
                     if (ToggleFile == 0)
-                    {    
-                        file = Path.Combine(Directory.GetCurrentDirectory(), I.Arguements[i].Substring(1));
+                    {
+                        file = Path.Combine(Directory.GetCurrentDirectory(), I.Arguments[i].Substring(1));
                         File.Create(file).Dispose();
-                        Console.WriteLine(I.Arguements[i].Substring(1) + " Created!");
+                        Console.WriteLine(I.Arguments[i].Substring(1) + " Created!");
                     }
                     else
                     {
-                        file = Path.Combine(Directory.GetCurrentDirectory(), I.Arguements[i].Substring(1));
+                        file = Path.Combine(Directory.GetCurrentDirectory(), I.Arguments[i].Substring(1));
                         Console.WriteLine(Directory.CreateDirectory(file) + " created!");
                     }
                 }
@@ -368,14 +375,14 @@ class Program
                 {
                     if (ToggleFile == 0)
                     {
-                        file = Path.Combine(Directory.GetCurrentDirectory(), I.Arguements[i]);
+                        file = Path.Combine(Directory.GetCurrentDirectory(), I.Arguments[i]);
                         Console.WriteLine(Directory.CreateDirectory(file) + " created!");
                     }
                     else
                     {
-                        file = Path.Combine(Directory.GetCurrentDirectory(), I.Arguements[i]);
+                        file = Path.Combine(Directory.GetCurrentDirectory(), I.Arguments[i]);
                         File.Create(file).Dispose();
-                        Console.WriteLine(I.Arguements[i] + " Created!");
+                        Console.WriteLine(I.Arguments[i] + " Created!");
                     }
                 }
 
@@ -385,13 +392,13 @@ class Program
                 }
                 
             }
-            catch (UnauthorizedAccessException)
+            catch (UnauthorizedAccessException ex)
             {
-                Console.WriteLine("Access denied.");
+                Console.WriteLine(ex.Message);
             }
-            catch (IOException)
+            catch (IOException ex)
             {
-                Console.WriteLine("File Already Exists!");
+                Console.WriteLine(ex.Message);
             }
         }
     }
@@ -402,7 +409,7 @@ class Program
         do
         {
             Console.Write("Bettle > ");
-            command = Console.ReadLine();
+            command = Console.ReadLine()?.Trim();
             if (command == "exit" || command == "quit" || command == "kill")
                 break;
             if (command != null)
@@ -422,12 +429,70 @@ class Program
     {
         Instructions I = new();
 
+        bool IsReplaced = false;
+        int replaced = 0;
+
         // Converts "     Show   -h    -g    dir   " into "show -h -g dir"
         string[] _Parts = command.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         command = string.Join(" ", _Parts);
 
+        if (command.Contains("\""))
+        {
+            for (int i = 0; i < command.Length; i++)
+            {
+                if (command[i] == '"')
+                {
+                    for (int j = i + 1; j < command.Length; j++)
+                    {
+                        Console.WriteLine(command[j]);
+                        if (command[j] == ' ')
+                        {
+                            Console.WriteLine("There is a space at index " + j);
+                            command = command.Remove(j, 1).Insert(j, "_");
+                            IsReplaced = true;
+                            replaced = j;
+                        }
+                        else if (command[j] == '"')
+                        {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+         
+        int ReplacedWord = 0; 
+        int ReplacedLetter = 0;
+
+        for (int i = 0; i < replaced; i++)
+        {
+            if (command[i] == ' ')
+            {
+                ReplacedWord++;
+                ReplacedLetter = 0;
+            }
+            else
+            {
+                ReplacedLetter++;
+            }
+        }
+
         // divides the command into sections 
         string[] Parts = command.Split(" ");
+
+        if (IsReplaced)
+        {
+            Parts[ReplacedWord] = Parts[ReplacedWord].Remove(ReplacedLetter, 1).Insert(ReplacedLetter, " ");
+        }
+
+        for (int i = 0; i < Parts.Length; i++)
+        {
+            if (Parts[i].StartsWith('"') || Parts[i].EndsWith('"'))
+            {
+                Parts[i] = Parts[i].Substring(1, Parts[i].Length - 2);
+                Parts[i] = Parts[i].Remove(Parts[i].Length - 1, 0);
+            }
+        }
 
         // Checking whether the tags or arguemnt is present or not
         int ArgumentsCount = 0;
@@ -486,17 +551,17 @@ class Program
                     I.Message = "Not a Flagable";
                 }
 
-                // Checking the count of arguements which are instered
+                // Checking the count of arguments which are instered
                 for (int i = IsCommand + TagCount; i < Parts.Length; i++) 
                 {
                     if (!(Parts[i].StartsWith("-")))
                     {
-                        I.Arguements.Add(Parts[i]);
+                        I.Arguments.Add(Parts[i]);
                         ArgumentsCount++;
                     }
                     else
                     {
-                        I.Arguements.Clear();
+                        I.Arguments.Clear();
                         I.ArguementAble = 0;
                         I.ArgumentsCount = 0;
                         I.Message = "Invalid Arguement";
