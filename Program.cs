@@ -28,7 +28,7 @@ class Program
 
     static List<CommandClass> Commandslist = 
     [
-        new CommandClass(1,"show", true, true, ["-h", "-f"], ShowFolders),
+        new CommandClass(1,"show", true, true, ["-h", "-f", "-a"], ShowFolders),
         new CommandClass(2,"help", true, false, [], Help),
         new CommandClass(3,"pwd", false, false, [], CurrentDirectory),
         new CommandClass(4,"create", true, true, ["-h", "-f"], MakeDirectory)
@@ -188,6 +188,7 @@ class Program
         string dir = "";
         int ToggleHiddenDirectories = 0;
         int ToggleFiles = 0;
+        int ToggleFoldersandFiles = 0;
 
         // Tags toggler and checker
         foreach (string tag in I.TagsID)
@@ -200,6 +201,10 @@ class Program
 
                 case "-f":
                     ToggleFiles = 1;
+                    break;
+
+                case "-a":
+                    ToggleFoldersandFiles = 1; // Also shows the files and folders in the directory 
                     break;
                 
                 default:
@@ -244,11 +249,21 @@ class Program
                 {
                     Console.WriteLine("No folders");
                 }
+                else if (ToggleFoldersandFiles == 1)
+                {
+                    Console.WriteLine("No files or folders");
+                }
                 else
                 {
                     Console.WriteLine("No files");
                 }
             }            
+
+            if (ToggleFoldersandFiles == 1)
+            {
+                string[] files = Directory.GetFiles(dir);
+                folders = folders.Concat(files).ToArray();
+            }
 
             foreach (string folder in folders)
             {
@@ -257,7 +272,14 @@ class Program
 
                 if (HiddenFolder == 0)
                 {
-                    Console.WriteLine(Path.GetFileName(folder));
+                    if((attributes & FileAttributes.Directory) != 0)
+                    {
+                        Console.WriteLine(".\\" + Path.GetFileName(folder));
+                    }
+                    else
+                    {
+                        Console.WriteLine(Path.GetFileName(folder));
+                    }
                 }
                 else if (HiddenFolder == 1 && ToggleHiddenDirectories == 0)
                 {
@@ -265,21 +287,28 @@ class Program
                 }
                 else if (HiddenFolder == 1 && ToggleHiddenDirectories == 1)
                 {
-                    Console.WriteLine(Path.GetFileName(folder));
+                    if ((attributes & FileAttributes.Directory) != 0)
+                    {
+                        Console.WriteLine(".\\" + Path.GetFileName(folder));
+                    }
+                    else
+                    {
+                        Console.WriteLine(Path.GetFileName(folder));
+                    }
                 }
             }
         }
-        catch (DirectoryNotFoundException em)
+        catch (DirectoryNotFoundException)
         {
             I.ErrMessage = "Directory not found";
             I.ErrCode = 1;
         }
-        catch (UnauthorizedAccessException em)
+        catch (UnauthorizedAccessException)
         {
             I.ErrMessage = "Unauthorized access to file or directory";
             I.ErrCode = 1;
         }
-        catch (IOException em)
+        catch (IOException)
         {
             I.ErrMessage = "I/O error occurred";
             I.ErrCode = 1;
@@ -406,12 +435,12 @@ class Program
                 }
                 
             }
-            catch (UnauthorizedAccessException ex)
+            catch (UnauthorizedAccessException)
             {
                 I.ErrMessage = "Unauthorized access to file or directory";
                 I.ErrCode = 1;
             }
-            catch (IOException ex)
+            catch (IOException)
             {
                 I.ErrMessage = "I/O error occurred";
                 I.ErrCode = 1;
@@ -627,7 +656,7 @@ class Program
             Help(I);
             return;
         }
-        
+
         I.CommandObject.Command(I); 
     }
 
