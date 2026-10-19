@@ -176,7 +176,9 @@ class Program
             }
         }
 
-        public string Message = "";
+        public int ErrCode = 0;
+
+        public string ErrMessage = "";
 
         public CommandClass? CommandObject;
     }
@@ -201,7 +203,8 @@ class Program
                     break;
                 
                 default:
-                    I.Message = "Invalid Tags";
+                    I.ErrMessage = "Invalid Tags";
+                    I.ErrCode = 1;
                     return;
             }
         }
@@ -209,7 +212,8 @@ class Program
         // Arguments Count checker
         if (I.ArgumentsCount > 1)
         {
-            I.Message = "To many Arguments";
+            I.ErrMessage = "To many Arguments";
+            I.ErrCode = 1;
             return;
         }
         else
@@ -267,43 +271,50 @@ class Program
         }
         catch (DirectoryNotFoundException em)
         {
-            Console.WriteLine(em.Message);
+            I.ErrMessage = "Directory not found";
+            I.ErrCode = 1;
         }
         catch (UnauthorizedAccessException em)
         {
-            Console.WriteLine(em.Message);
+            I.ErrMessage = "Unauthorized access to file or directory";
+            I.ErrCode = 1;
+        }
+        catch (IOException em)
+        {
+            I.ErrMessage = "I/O error occurred";
+            I.ErrCode = 1;
         }
     }
 
     static void Help(Instructions I)
     {
-        string help_cmd = I.Message;
-        string message = "";
+        string help_cmd = I.ErrMessage;
+        string Errmessage = "";
         switch (help_cmd)
         {
             case "show":
-                message = "Helping with the show!";  
+                Errmessage = "Helping with the show!";  
                 break;
             case "Bettle":
-                message = "Helping with the Bettle!";
+                Errmessage = "Helping with the Bettle!";
                 break;    
             case "Not a Flagable":
-                message = "Not a Tagable Command";
+                Errmessage = "Not a Tagable Command";
                 break; 
             case "Not a Arguementable":
-                message = "Not an Arguementable Command";
+                Errmessage = "Not an Arguementable Command";
                 break; 
             case "Not a Tag":
-                message = "Not a tag supposed";
+                Errmessage = "Not a tag supposed";
                 break;    
             case "Use Default":
-                message = "Using Defaults";
+                Errmessage = "Using Defaults";
                 break;          
             default:
-                message = "";
+                Errmessage = "";
                 break;
         }
-        Console.WriteLine(message);
+        Console.WriteLine(Errmessage);
     }
 
     static void CurrentDirectory(Instructions I)
@@ -311,13 +322,15 @@ class Program
         // Checks whether the Tags are present any how
         if (I.TagAble == 1 || I.TagCount != 0 || I.TagsID.Count != 0)
         {
-            I.Message = "Not a Flagable";
+            I.ErrMessage = "Not a Flagable";
+            I.ErrCode = 1;
             return;
         }
         // Checks whether any arguemtent is present or not
         else if (I.ArguementAble == 1 || I.ArgumentsCount != 0 || I.Arguments.Count != 0)
         {
-            I.Message = "Not a Arguementable";
+            I.ErrMessage = "Not a Arguementable";
+            I.ErrCode = 1;
             return;
         }
         else
@@ -345,7 +358,8 @@ class Program
                     break;
                 
                 default:
-                    I.Message = "Invalid Tags";
+                    I.ErrMessage = "Invalid Tags";
+                    I.ErrCode = 1;
                     return;
             }
         }
@@ -394,11 +408,13 @@ class Program
             }
             catch (UnauthorizedAccessException ex)
             {
-                Console.WriteLine(ex.Message);
+                I.ErrMessage = "Unauthorized access to file or directory";
+                I.ErrCode = 1;
             }
             catch (IOException ex)
             {
-                Console.WriteLine(ex.Message);
+                I.ErrMessage = "I/O error occurred";
+                I.ErrCode = 1;
             }
         }
     }
@@ -430,7 +446,8 @@ class Program
         Instructions I = new();
 
         bool IsReplaced = false;
-        int replaced = 0;
+        int ReplacedCount = 0;
+        int[] replaced = new int[command.Length];
 
         // Converts "     Show   -h    -g    dir   " into "show -h -g dir"
         string[] _Parts = command.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -444,45 +461,50 @@ class Program
                 {
                     for (int j = i + 1; j < command.Length; j++)
                     {
-                        Console.WriteLine(command[j]);
                         if (command[j] == ' ')
                         {
-                            Console.WriteLine("There is a space at index " + j);
                             command = command.Remove(j, 1).Insert(j, "_");
                             IsReplaced = true;
-                            replaced = j;
+                            replaced[ReplacedCount] = j;
+                            ReplacedCount++;                            
                         }
                         else if (command[j] == '"')
                         {
                             break;
-                        }
+                        }               
                     }
                 }
             }
         }
          
-        int ReplacedWord = 0; 
-        int ReplacedLetter = 0;
+        int[] ReplacedWord = new int[command.Length];
+        int[] ReplacedLetter = new int[command.Length];
 
-        for (int i = 0; i < replaced; i++)
+        for (int j = 0; j < ReplacedCount; j++)
         {
-            if (command[i] == ' ')
+            for (int i = 0; i < replaced[j]; i++)
             {
-                ReplacedWord++;
-                ReplacedLetter = 0;
+                if (command[i] == ' ')
+                {
+                    ReplacedWord[j]++;
+                    ReplacedLetter[j] = 0;
+                }
+                else
+                {
+                    ReplacedLetter[j]++;
+                }
             }
-            else
-            {
-                ReplacedLetter++;
-            }
-        }
+        }        
 
         // divides the command into sections 
         string[] Parts = command.Split(" ");
 
         if (IsReplaced)
         {
-            Parts[ReplacedWord] = Parts[ReplacedWord].Remove(ReplacedLetter, 1).Insert(ReplacedLetter, " ");
+            for (int j = 0; j < ReplacedCount; j++)
+            {
+                Parts[ReplacedWord[j]] = Parts[ReplacedWord[j]].Remove(ReplacedLetter[j], 1).Insert(ReplacedLetter[j], " ");
+            }
         }
 
         for (int i = 0; i < Parts.Length; i++)
@@ -518,7 +540,8 @@ class Program
             }
             else if (CurrentCommand == null)
             {
-                I.Message = "Not a Command";
+                I.ErrMessage = "Not a Command";
+                I.ErrCode = 1;
             }
             IsCommand = (CommandID == -1) ? 0 : 1;
         }
@@ -548,7 +571,8 @@ class Program
                 // Checks Validity of Command`s TagAble
                 if (TagCount > 0 && !(CurrentCommand.TagAble))
                 {
-                    I.Message = "Not a Flagable";
+                    I.ErrMessage = "Not a Flagable";
+                    I.ErrCode = 1;
                 }
 
                 // Checking the count of arguments which are instered
@@ -564,7 +588,8 @@ class Program
                         I.Arguments.Clear();
                         I.ArguementAble = 0;
                         I.ArgumentsCount = 0;
-                        I.Message = "Invalid Arguement";
+                        I.ErrMessage = "Invalid Arguement";
+                        I.ErrCode = 1;
                         break;
                     }
                 }
@@ -572,7 +597,8 @@ class Program
                 // Checks Validity of Command`s ArgumentAble
                 if (ArgumentsCount > 0 && !(CurrentCommand.ArgumentAble))
                 {
-                    I.Message = "Not a Arguementable";
+                    I.ErrMessage = "Not a Arguementable";
+                    I.ErrCode = 1;
                 }
             }
         }
@@ -595,6 +621,13 @@ class Program
         {
             return;
         }
+
+        if (I.ErrCode == 1)
+        {
+            Help(I);
+            return;
+        }
+        
         I.CommandObject.Command(I); 
     }
 
