@@ -30,7 +30,7 @@ class Program
     [
         new CommandClass(1,"show", true, true, ["-h", "-f", "-a"], ShowFolders),
         new CommandClass(2,"help", true, false, [], Help),
-        new CommandClass(3,"pwd", false, false, [], CurrentDirectory),
+        new CommandClass(3,"cd", true, false, [], CurrentDirectory),
         new CommandClass(4,"create", true, true, ["-h", "-f"], MakeDirectory)
     ];
 
@@ -348,6 +348,7 @@ class Program
 
     static void CurrentDirectory(Instructions I)
     {
+        bool Change_Directory = false;
         // Checks whether the Tags are present any how
         if (I.TagAble == 1 || I.TagCount != 0 || I.TagsID.Count != 0)
         {
@@ -356,11 +357,37 @@ class Program
             return;
         }
         // Checks whether any arguemtent is present or not
-        else if (I.ArguementAble == 1 || I.ArgumentsCount != 0 || I.Arguments.Count != 0)
+            else if (I.ArguementAble == 1 && I.ArgumentsCount > 0 && I.Arguments.Count > 0 && I.ArgumentsCount < 2 && I.Arguments.Count < 2)
         {
-            I.ErrMessage = "Not a Arguementable";
-            I.ErrCode = 1;
-            return;
+            Change_Directory = true;
+            try {
+                Directory.SetCurrentDirectory(I.Arguments[0]);
+                Console.WriteLine("Current Directory: " + Directory.GetCurrentDirectory());
+            }
+            catch (DirectoryNotFoundException)
+            {
+                Console.WriteLine("Directory not found");
+                Console.WriteLine("Would you like to create the directory? (y/n)");
+                string? response = Console.ReadLine()?.Trim().ToLower();
+                if (response == "y" || response == "yes")
+                {
+                    MakeDirectory(I);
+                }
+                else
+                {
+                    return;
+                }
+            }
+            catch (UnauthorizedAccessException)
+            {
+                I.ErrMessage = "Unauthorized access to file or directory";
+                I.ErrCode = 1;
+            }
+            catch (IOException)
+            {
+                I.ErrMessage = "I/O error occurred";
+                I.ErrCode = 1;
+            }
         }
         else
         {
