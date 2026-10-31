@@ -46,6 +46,18 @@ straightforward as written
     
     `-f`: is for file
 
-    `Hello\h1\h2`: command is able to create create a folder naming `Hello` and then `h1` under `Hello` and then `h2` under `h1` 
+    `Hello\h1\h2`: command is able to create a folder naming `Hello` and then `h1` under `Hello` and then `h2` under `h1` 
 
     Tags can be joined as `-h -f` means both hidden and files which mean hidden file
+
+4. remove: 
+
+    `tags: -f`
+
+    `murder <Folder_Name>`: rmeove the folder with name specified
+
+    `Wild - Card Entry`: `&` could be used to remove a file while having requested for folders and vice versa
+    
+    `-f`: is for file
+
+    `Hello\h1\h2`: command is able to remove a folder naming `Hello` and then `h1` under `Hello` and then `h2` under `h1` 

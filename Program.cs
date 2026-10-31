@@ -1,9 +1,3 @@
-using System;
-using System.ComponentModel.Design;
-using System.IO;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Transactions;
 class Program
 {
     public class CommandClass
@@ -28,10 +22,12 @@ class Program
 
     static List<CommandClass> Commandslist = 
     [
-        new CommandClass(1,"show", true, true, ["-h", "-f", "-a"], ShowFolders),
+        //new CommandClass(Serial_No.,Command, Arguments, tags, lists of tags allowed, Function),
+        new CommandClass(1,"show", true , true, ["-h", "-f", "-a"], ShowFolders),
         new CommandClass(2,"help", true, false, [], Help),
-        new CommandClass(3,"cd", true, false, [], CurrentDirectory),
-        new CommandClass(4,"create", true, true, ["-h", "-f"], MakeDirectory)
+        new CommandClass(3,"cd", true, false , [], CurrentDirectory),
+        new CommandClass(4,"create", true, true, ["-h", "-f"], MakeDirectory),
+        new CommandClass(5,"murder", true, true, ["-f"], RemoveDirectory)
     ];
 
     public class Instructions
@@ -420,9 +416,11 @@ class Program
             }
         }
 
+        // This is from where the commands starts
         for (int i = 0; i < I.Arguments.Count; i++)
         {
-            try {
+            try 
+            {
                 string file;
 
                 // If the passed argument is with a token & (for creating a file)
@@ -432,13 +430,27 @@ class Program
                     if (ToggleFile == 0)
                     {
                         file = Path.Combine(Directory.GetCurrentDirectory(), I.Arguments[i].Substring(1));
-                        File.Create(file).Dispose();
-                        Console.WriteLine(I.Arguments[i].Substring(1) + " Created!");
+                        if (File.Exists(file))
+                        {
+                            Console.WriteLine(I.Arguments[i].Substring(1) + " Already Exists!");
+                        }
+                        else
+                        {
+                            File.Create(file).Dispose();
+                            Console.WriteLine(I.Arguments[i].Substring(1) + " Created!");
+                        }
                     }
                     else
                     {
                         file = Path.Combine(Directory.GetCurrentDirectory(), I.Arguments[i].Substring(1));
-                        Console.WriteLine(Directory.CreateDirectory(file) + " created!");
+                        if (!Directory.Exists(file))
+                        {
+                            Console.WriteLine(Directory.CreateDirectory(file) + " created!");
+                        }
+                        else
+                        {
+                            Console.WriteLine(file + " Already Exists!");
+                        }
                     }
                 }
                 else
@@ -446,13 +458,27 @@ class Program
                     if (ToggleFile == 0)
                     {
                         file = Path.Combine(Directory.GetCurrentDirectory(), I.Arguments[i]);
-                        Console.WriteLine(Directory.CreateDirectory(file) + " created!");
+                        if (!Directory.Exists(file))
+                        {
+                            Console.WriteLine(Directory.CreateDirectory(file) + " created!");
+                        }
+                        else
+                        {
+                            Console.WriteLine(file + " Already Exists!");
+                        }
                     }
                     else
                     {
                         file = Path.Combine(Directory.GetCurrentDirectory(), I.Arguments[i]);
-                        File.Create(file).Dispose();
-                        Console.WriteLine(I.Arguments[i] + " Created!");
+                        if (File.Exists(file))
+                        {
+                            Console.WriteLine(I.Arguments[i] + " Already exists!");
+                        }
+                        else
+                        {
+                            File.Create(file).Dispose();
+                            Console.WriteLine(I.Arguments[i] + " Created!");
+                        }
                     }
                 }
 
@@ -461,6 +487,106 @@ class Program
                     File.SetAttributes(file, FileAttributes.Hidden);
                 }
                 
+            }
+            catch (UnauthorizedAccessException)
+            {
+                I.ErrMessage = "Unauthorized access to file or directory";
+                I.ErrCode = 1;
+            }
+            catch (IOException)
+            {
+                I.ErrMessage = "I/O error occurred";
+                I.ErrCode = 1;
+            }
+        }
+    }
+
+    static void RemoveDirectory(Instructions I)
+    {
+        int ToggleFile = 0;
+
+        // Tags toggler and checker
+        foreach (string tag in I.TagsID)
+        {
+            switch (tag)
+            {
+                case "-f":
+                    ToggleFile = 1;
+                    break;
+                
+                default:
+                    I.ErrMessage = "Invalid Tags";
+                    I.ErrCode = 1;
+                    return;
+            }
+        }
+
+        for (int i = 0; i < I.Arguments.Count; i++)
+        {
+            try
+            {
+                // If Wild - Card Enters
+                if (I.Arguments[i].StartsWith("&"))
+                {
+                    // Delete the folder or file
+                    if (ToggleFile == 0)
+                    {
+                        // Delete the files
+                        File.Delete(I.Arguments[i].Substring(1));
+                        Console.WriteLine(Directory.GetCurrentDirectory() + I.Arguments[i] + " is deleted successfully!");
+                    }
+                    else
+                    {
+                        // Delete the folders
+                        if (Directory.EnumerateFileSystemEntries(I.Arguments[i].Substring(1)).Any())
+                        {
+                            Console.Write("The folder \"" + Directory.GetCurrentDirectory() + "\\" +  I.Arguments[i].Substring(1) + "\" is not empty, do you wanna go on(Y/N): ");
+                            if (Console.ReadLine().ToUpper() == "Y")
+                            {
+                                Directory.Delete(I.Arguments[i].Substring(1), true);
+                                Console.WriteLine(Directory.GetCurrentDirectory() + "\\" + I.Arguments[i] + " deleted!");
+                            }
+                        }
+                        else
+                        {
+                            Directory.Delete(I.Arguments[i].Substring(1));
+                            Console.WriteLine(Directory.GetCurrentDirectory() + "\\" + I.Arguments[i] + " deleted!");
+                        }
+                    }                   
+                }
+                else
+                {
+                    // Delete the folder or file
+                    if (ToggleFile == 1)
+                    {
+                        // Delete the files
+                        File.Delete(I.Arguments[i]);  
+                        Console.WriteLine(Directory.GetCurrentDirectory() + "\\" + I.Arguments[i] + " is deleted successfully!");                 
+                    }
+                    else
+                    {
+                        // Delete the folders
+                        if (Directory.EnumerateFileSystemEntries(I.Arguments[i]).Any())
+                        {
+                            Console.Write("The folder \"" + Directory.GetCurrentDirectory() + I.Arguments[i] + "\" is not empty. Do you want to continue (Y/N)? ");
+                            if (Console.ReadLine().ToUpper() == "Y")
+                            {
+                                Directory.Delete(I.Arguments[i], true);
+                                Console.WriteLine(Directory.GetCurrentDirectory() + "\\" + I.Arguments[i] + " deleted!");
+                            }
+                        }
+                        else
+                        {
+                            Directory.Delete(I.Arguments[i]);
+                            Console.WriteLine(Directory.GetCurrentDirectory() + "\\" + I.Arguments[i] + " deleted!");
+                        }
+                    }     
+                }
+            }
+            catch (FileNotFoundException)
+            {
+                I.ErrMessage = "File does not exists";
+                I.ErrCode = 1;
             }
             catch (UnauthorizedAccessException)
             {
