@@ -1,4 +1,4 @@
-So we have some commands as:
+Commands:
 
 - show
 
@@ -7,8 +7,6 @@ So we have some commands as:
 - cd 
 
 - create
-
-straightforward as written
 
 1. show: 
 
@@ -50,6 +48,11 @@ straightforward as written
 
     Tags can be joined as `-h -f` means both hidden and files which mean hidden file
 
+    `create -f &&Hello` creates a folder named &Hello
+    `create &&Hello.py` creates a file named &Hello.py
+
+    The current code can not create `&Hello` and `&Hello.py` at once in one line
+
 4. remove: 
 
     `tags: -f`
@@ -61,3 +64,17 @@ straightforward as written
     `-f`: is for file
 
     `Hello\h1\h2`: command is able to remove a folder naming `Hello` and then `h1` under `Hello` and then `h2` under `h1` 
+
+5. stage:
+
+    `tags: -s, -c, -r`
+
+    `stage <File_Path>`: include the file name at the stage beforing checking for any repition
+
+    `-s`: display all the files present at the stage
+
+    `-c`: clears all the files present at the stage
+
+    `-r`: remove the file or folder from the stage
+
+    Remember we can also stage a file or folder not existing at all, so we can stage them

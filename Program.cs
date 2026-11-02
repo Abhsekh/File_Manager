@@ -1,14 +1,22 @@
 class Program
 {
+    // Class for the Commands
     public class CommandClass
     {
+        // Command ID
         public int Id;
+        // Command Name
         public string Name;
+        // Is the command Argument able or not
         public bool ArgumentAble;
+        // Is the command Tag able or not
         public bool TagAble;
+        // List of the Tags of string data type
         public List<string> TagsId = new();
+        // Function of the command
         public Action<Instructions> Command;
 
+        // Constructor for the CommandClass
         public CommandClass(int Id, string Name, bool ArgumentAble, bool TagAble, List<string> TagsId, Action<Instructions> cmd)
         {
             this.Id = Id;
@@ -20,16 +28,19 @@ class Program
         }
     }
 
+    // List of Commands
     static List<CommandClass> Commandslist = 
     [
-        //new CommandClass(Serial_No.,Command, Arguments, tags, lists of tags allowed, Function),
-        new CommandClass(1,"show", true , true, ["-h", "-f", "-a"], ShowFolders),
-        new CommandClass(2,"help", true, false, [], Help),
-        new CommandClass(3,"cd", true, false , [], CurrentDirectory),
-        new CommandClass(4,"create", true, true, ["-h", "-f"], MakeDirectory),
-        new CommandClass(5,"murder", true, true, ["-f"], RemoveDirectory)
+//      new CommandClass(S.N., Command     , Arguments, Tags   , Lists of tags allowed , Function)          ,
+        new CommandClass(1   , "show"      , true     , true   , ["-h", "-f", "-a"]    , ShowFolders)       ,
+        new CommandClass(2   , "help"      , true     , false  , []                    , Help)              ,
+        new CommandClass(3   , "cd"        , true     , false  , []                    , CurrentDirectory)  ,
+        new CommandClass(4   , "create"    , true     , true   , ["-h", "-f"]          , MakeDirectory)     ,
+        new CommandClass(5   , "murder"    , true     , true   , ["-f"]                , RemoveDirectory)   ,
+        new CommandClass(6   , "stage"     , true     , true   , ["-s", "-c", "-r"]    , Stage)
     ];
 
+    // Class for the Instructions
     public class Instructions
     {
         // Current Id
@@ -237,7 +248,7 @@ class Program
             else
             {
                 folders = Directory.GetFiles(dir);
-            }   
+            }
 
             if (folders.Length == 0 || folders == null)
             {
@@ -257,11 +268,14 @@ class Program
 
             if (ToggleFoldersandFiles == 1)
             {
-                string[] files = Directory.GetFiles(dir);
-                folders = folders.Concat(files).ToArray();
+                string[]? files = Directory.GetFiles(dir);
+
+                // If folders is null, use an empty array instead, use ?? for nullable coalescing operator
+                folders = (folders ?? Array.Empty<string>()).Concat(files).ToArray();
             }
 
-            foreach (string folder in folders)
+            // If folders is null, use an empty array instead, use ?? for nullable coalescing operator
+            foreach (string? folder in (folders ?? Array.Empty<string>()))
             {
                 FileAttributes attributes = File.GetAttributes(folder);
                 int HiddenFolder = ((attributes & FileAttributes.Hidden) != 0) ? 1 : 0;
@@ -344,7 +358,6 @@ class Program
 
     static void CurrentDirectory(Instructions I)
     {
-        bool Change_Directory = false;
         // Checks whether the Tags are present any how
         if (I.TagAble == 1 || I.TagCount != 0 || I.TagsID.Count != 0)
         {
@@ -355,7 +368,6 @@ class Program
         // Checks whether any arguemtent is present or not
             else if (I.ArguementAble == 1 && I.ArgumentsCount > 0 && I.Arguments.Count > 0 && I.ArgumentsCount < 2 && I.Arguments.Count < 2)
         {
-            Change_Directory = true;
             try {
                 Directory.SetCurrentDirectory(I.Arguments[0]);
                 Console.WriteLine("Current Directory: " + Directory.GetCurrentDirectory());
@@ -531,26 +543,43 @@ class Program
                     // Delete the folder or file
                     if (ToggleFile == 0)
                     {
-                        // Delete the files
-                        File.Delete(I.Arguments[i].Substring(1));
-                        Console.WriteLine(Directory.GetCurrentDirectory() + I.Arguments[i] + " is deleted successfully!");
-                    }
-                    else
-                    {
-                        // Delete the folders
-                        if (Directory.EnumerateFileSystemEntries(I.Arguments[i].Substring(1)).Any())
+                        if (File.Exists(I.Arguments[i].Substring(1)))
                         {
-                            Console.Write("The folder \"" + Directory.GetCurrentDirectory() + "\\" +  I.Arguments[i].Substring(1) + "\" is not empty, do you wanna go on(Y/N): ");
-                            if (Console.ReadLine().ToUpper() == "Y")
-                            {
-                                Directory.Delete(I.Arguments[i].Substring(1), true);
-                                Console.WriteLine(Directory.GetCurrentDirectory() + "\\" + I.Arguments[i] + " deleted!");
-                            }
+                            // Delete the files
+                            File.Delete(I.Arguments[i].Substring(1));
+                            Console.WriteLine(Directory.GetCurrentDirectory() + "\\" + I.Arguments[i].Substring(1) + " is deleted successfully!");
                         }
                         else
                         {
-                            Directory.Delete(I.Arguments[i].Substring(1));
-                            Console.WriteLine(Directory.GetCurrentDirectory() + "\\" + I.Arguments[i] + " deleted!");
+                            I.ErrMessage = "File does not exists";
+                            I.ErrCode = 1;
+                        }
+                    }
+                    else
+                    {
+                        if (!Directory.Exists(I.Arguments[i].Substring(1)))
+                        {
+                            I.ErrMessage = "Folder does not exists";
+                            I.ErrCode = 1;
+                        }
+                        else
+                        {
+                            // Delete the folders
+                            if (Directory.EnumerateFileSystemEntries(I.Arguments[i].Substring(1)).Any())
+                            {
+                                Console.Write("The folder \"" + Directory.GetCurrentDirectory() + "\\" +  I.Arguments[i].Substring(1) + "\" is not empty, do you wanna go on(y/n): ");
+                                // If the user does not enters anything, it will be considered as No
+                                if ((Console.ReadLine() ?? "n").ToLower() == "y")
+                                {
+                                    Directory.Delete(I.Arguments[i].Substring(1), true);
+                                    Console.WriteLine(Directory.GetCurrentDirectory() + "\\" + I.Arguments[i].Substring(1) + " deleted with its subdirectories!");
+                                }
+                            }
+                            else
+                            {
+                                Directory.Delete(I.Arguments[i].Substring(1));
+                                Console.WriteLine(Directory.GetCurrentDirectory() + "\\" + I.Arguments[i].Substring(1) + " deleted!");
+                            }
                         }
                     }                   
                 }
@@ -560,25 +589,41 @@ class Program
                     if (ToggleFile == 1)
                     {
                         // Delete the files
-                        File.Delete(I.Arguments[i]);  
-                        Console.WriteLine(Directory.GetCurrentDirectory() + "\\" + I.Arguments[i] + " is deleted successfully!");                 
-                    }
-                    else
-                    {
-                        // Delete the folders
-                        if (Directory.EnumerateFileSystemEntries(I.Arguments[i]).Any())
+                        if (File.Exists(I.Arguments[i]))
                         {
-                            Console.Write("The folder \"" + Directory.GetCurrentDirectory() + I.Arguments[i] + "\" is not empty. Do you want to continue (Y/N)? ");
-                            if (Console.ReadLine().ToUpper() == "Y")
-                            {
-                                Directory.Delete(I.Arguments[i], true);
-                                Console.WriteLine(Directory.GetCurrentDirectory() + "\\" + I.Arguments[i] + " deleted!");
-                            }
+                            File.Delete(I.Arguments[i]);
+                            Console.WriteLine(Directory.GetCurrentDirectory() + "\\" + I.Arguments[i] + " is deleted successfully!");
                         }
                         else
                         {
-                            Directory.Delete(I.Arguments[i]);
-                            Console.WriteLine(Directory.GetCurrentDirectory() + "\\" + I.Arguments[i] + " deleted!");
+                            I.ErrMessage = "File does not exists";
+                            I.ErrCode = 1;
+                        }
+                    }
+                    else
+                    {
+                        if (!Directory.Exists(I.Arguments[i]))
+                        {
+                            I.ErrMessage = "Folder does not exists";
+                            I.ErrCode = 1;
+                        }
+                        else
+                        {
+                            // Delete the folders
+                            if (Directory.EnumerateFileSystemEntries(I.Arguments[i]).Any())
+                            {
+                                Console.Write("The folder \"" + Directory.GetCurrentDirectory() + "\\" + I.Arguments[i] + "\" is not empty. Do you want to continue (Y/N)? ");
+                                if ((Console.ReadLine()  ?? "N").ToUpper() == "Y")
+                                {
+                                    Directory.Delete(I.Arguments[i], true);
+                                    Console.WriteLine(Directory.GetCurrentDirectory() + "\\" + I.Arguments[i] + " deleted with its subdirectories!");
+                                }
+                            }
+                            else
+                            {
+                                Directory.Delete(I.Arguments[i]);
+                                Console.WriteLine(Directory.GetCurrentDirectory() + "\\" + I.Arguments[i] + " deleted!");
+                            }
                         }
                     }     
                 }
@@ -597,6 +642,174 @@ class Program
             {
                 I.ErrMessage = "I/O error occurred";
                 I.ErrCode = 1;
+            }
+        }
+    }
+
+    static void Stage(Instructions I)
+    {
+        // Tags
+        bool ToggleShow = false;
+        bool ToggleClear = false;
+        bool ToggleMake = false;
+        bool ToggleRemove = false;
+        bool ToggleDelete = false;
+
+        // Tags toggler and checker
+        foreach (string tag in I.TagsID)
+        {
+            switch (tag)
+            {
+                case "-s":
+                    ToggleShow = true;
+                    break;
+
+                case "-c":
+                    ToggleClear = true;
+                    break;
+
+                case "-m":
+                    ToggleMake = true;
+                    break;
+
+                case "-r":
+                    ToggleRemove = true;
+                    break;
+
+                case "-d":
+                    ToggleDelete = true;
+                    break;
+                
+                default:
+                    I.ErrMessage = "Invalid Tags";
+                    I.ErrCode = 1;
+                    return;
+            }
+        }
+
+        if (ToggleShow)
+        {
+            if (File.Exists("data.io"))
+            {
+                string[] paths = File.ReadLines("data.io").Where(line => !string.IsNullOrWhiteSpace(line)).ToArray();
+
+                Console.WriteLine("Staged Files: " + paths.Length);
+
+                if (paths.Length == 0)
+                {
+                    Console.WriteLine("No Staged Files");
+                }
+                else
+                {
+                    for (int i = 0; i < paths.Length; i++)
+                    {
+                        Console.WriteLine($"{i + 1}. {paths[i]}");
+                    }
+                }
+            }
+            else
+            {
+                Console.WriteLine("Staged Files: 0");
+                Console.WriteLine("No Staged Files");
+                File.Create("data.io").Dispose();
+            }
+        }
+
+        if (ToggleClear)
+        {
+            if (File.Exists("data.io"))
+            {
+                File.Delete("data.io");
+                Console.WriteLine("Stage is Off!");
+            }
+            File.Create("data.io").Dispose();
+        }
+
+        if (ToggleRemove)
+        {
+            Console.WriteLine("No. of Arguements: " + I.ArgumentsCount);
+            for (int i = 0; i < I.ArgumentsCount; i++)
+            {
+                int n;
+                bool parsed = int.TryParse(I.Arguments[i], out n);
+
+                if (parsed)
+                {
+                    string[] lines = File.ReadAllLines("data.io");
+
+                    if (n >= 0 && n < lines.Length)
+                    {
+                        lines = lines.Where((line, index) => index != n).ToArray();
+
+                        File.WriteAllLines("data.io", lines); // Use WriteAllLines to overwrite the file with the updated lines
+
+                        Console.WriteLine(n + " has been thrown out of the stage!");
+                    }
+                }
+                else
+                {
+                    I.ErrMessage = "Invalid Index";
+                }
+            }
+        }
+
+        if (I.ArgumentsCount > 0 && !ToggleRemove && !ToggleDelete && !ToggleMake)
+        {
+            for (int i = 0; i < I.ArgumentsCount; i++)
+            {
+                // Used to Stage whole Folder and its Sub directories
+                if (I.Arguments[i].StartsWith("&"))
+                {
+                    // create the file if it does not exist
+                    if (!File.Exists("data.io"))
+                    {
+                        File.Create("data.io").Dispose();
+                    }
+                    else
+                    {
+                        // Checks whether the folders exists or not
+                        if (File.ReadLines("data.io").Contains(Path.GetFullPath(I.Arguments[i].Substring(1))))
+                        {
+                            Console.WriteLine(Path.GetFullPath(I.Arguments[i].Substring(1)) + " Already Staged!");
+                            continue;
+                        }
+                    }
+
+                    // Append the folders
+                    File.AppendAllText("data.io", "\n" + Path.GetFullPath(I.Arguments[i].Substring(1))); // used to append File path
+                    Console.WriteLine(Path.GetFullPath(I.Arguments[i].Substring(1)) + " has Staged!");
+
+                    string[] folders = Directory.GetFileSystemEntries(Path.GetFullPath(I.Arguments[i].Substring(1)),"*",SearchOption.AllDirectories);
+                    foreach (string folder in folders)
+                    {
+                        // Checks whether the folders exists or not
+                        if (File.ReadLines("data.io").Contains(Path.GetFullPath(folder)))
+                        {
+                            Console.WriteLine(Path.GetFullPath(folder) + " Already Staged!");
+                        }
+                        File.AppendAllText("data.io", "\n" + Path.GetFullPath(folder)); // used to append File path
+                        Console.WriteLine(Path.GetFullPath(folder) + " has Staged!");
+                    }
+                }
+                else
+                {
+                    // create the file if it does not exist
+                    if (!File.Exists("data.io"))
+                    {
+                        File.Create("data.io").Dispose();
+                    }
+                    else
+                    {
+                        // Checks whether the folders exists or not
+                        if (File.ReadLines("data.io").Contains(Path.GetFullPath(I.Arguments[i])))
+                        {
+                            Console.WriteLine(Path.GetFullPath(I.Arguments[i]) + " Already Staged!");
+                            continue;
+                        }
+                        File.AppendAllText("data.io", "\n" + Path.GetFullPath(I.Arguments[i])); // used to append File path
+                        Console.WriteLine(Path.GetFullPath(I.Arguments[i]) + " has Staged!");
+                    }
+                }
             }
         }
     }
