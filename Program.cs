@@ -37,7 +37,8 @@ class Program
         new CommandClass(3   , "cd"        , true     , false  , []                    , CurrentDirectory)  ,
         new CommandClass(4   , "create"    , true     , true   , ["-h", "-f"]          , MakeDirectory)     ,
         new CommandClass(5   , "murder"    , true     , true   , ["-f"]                , RemoveDirectory)   ,
-        new CommandClass(6   , "stage"     , true     , true   , ["-s", "-c", "-r"]    , Stage)
+        new CommandClass(6   , "stage"     , true     , true   , ["-s", "-c", "-r"]    , Stage)             ,
+        new CommandClass(7   , "move"      , true     , true   , ["-r"]                , Move)
     ];
 
     // Class for the Instructions
@@ -810,6 +811,121 @@ class Program
                         Console.WriteLine(Path.GetFullPath(I.Arguments[i]) + " has Staged!");
                     }
                 }
+            }
+        }
+    }
+
+    static void Move(Instructions I)
+    {
+        bool ToggleCopy = false;
+
+        // Tags toggler and checker
+        foreach (string tag in I.TagsID)
+        {
+            switch (tag)
+            {
+                case "-c":
+                    ToggleCopy = true;
+                    break;
+                
+                default:
+                    I.ErrMessage = "Invalid Tags";
+                    I.ErrCode = 1;
+                    return;
+            }
+        }
+
+        // Check whether the number of arguments is even or not, because we need pairs of source and destination paths
+        if (I.ArgumentsCount % 2 != 0)
+        {
+            I.ErrMessage = "Invalid number of arguments. Please provide source and destination paths.";
+            I.ErrCode = 1;
+            return;
+        }
+
+        for (int i = 0; i < I.ArgumentsCount; i += 2)
+        {
+            // Condition of renaming a file with the help of & token
+            if (I.Arguments[i].StartsWith("&") && I.Arguments[i + 1].StartsWith("&"))
+            {
+                string sourcePath = Path.GetFullPath(I.Arguments[i].Substring(1));
+                string destinationPath = Path.GetFullPath(I.Arguments[i + 1].Substring(1));
+
+                try
+                {
+                    if (File.Exists(sourcePath))
+                    {
+                        File.Move(sourcePath, destinationPath);
+                        Console.WriteLine($"File moved from {sourcePath} to {destinationPath}");
+                    }
+                    else
+                    {
+                        I.ErrMessage = "Source path does not exist.";
+                        I.ErrCode = 1;
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    I.ErrMessage = $"Error moving: {ex.Message}";
+                    I.ErrCode = 1;
+                    return;
+                }
+            }
+            // Condition of moving a file from one directory to another directory with the help of & token
+            else if (I.Arguments[i].StartsWith("&"))
+            {
+                string sourcePath = Path.GetFullPath(I.Arguments[i].Substring(1));
+                string destinationPath = string.Concat(Path.GetFullPath(I.Arguments[i + 1]), string.Concat("\\", Path.GetFileName(sourcePath)));
+
+                try
+                {
+                    if (File.Exists(sourcePath))
+                    {
+                        File.Move(sourcePath, destinationPath);
+                        Console.WriteLine($"File moved from {sourcePath} to {destinationPath}");
+                    }
+                    else
+                    {
+                        I.ErrMessage = "Source path does not exist.";
+                        I.ErrCode = 1;
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    I.ErrMessage = $"Error moving: {ex.Message}";
+                    I.ErrCode = 1;
+                    return;
+                }
+            }
+            // condition of moving a folder from one directory to another directory
+            else
+            {
+                string sourcePath = Path.GetFullPath(I.Arguments[i]);
+                string destinationPath = Path.GetFullPath(I.Arguments[i + 1]);
+
+                try
+                {
+                    if (Directory.Exists(sourcePath))
+                    {
+                        destinationPath = Path.Combine(destinationPath, Path.GetFileName(sourcePath));
+                        Directory.Move(sourcePath, destinationPath);
+                        Console.WriteLine($"Directory moved from {sourcePath} to {destinationPath}");
+                    }
+                    else
+                    {
+                        I.ErrMessage = "Source path does not exist.";
+                        I.ErrCode = 1;
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    I.ErrMessage = $"Error moving: {ex.Message}";
+                    I.ErrCode = 1;
+                    return;
+                }                
             }
         }
     }

@@ -78,3 +78,15 @@ Commands:
     `-r`: remove the file or folder from the stage
 
     Remember we can also stage a file or folder not existing at all, so we can stage them
+
+6. move:
+
+    `tags: -r`
+
+    `move <Source_path> <Destination_path>`: move the directory from source path to dest. path
+
+    `move &<File_path> <Destination_path>`: move the file from source path to dest. path
+    
+    `move &<File_path> &<Destination_path>`: rename the file from file path to dest. path
+
+    `-r`: Will be used to destroy the file present at the destination
