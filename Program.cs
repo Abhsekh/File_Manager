@@ -1,6 +1,8 @@
+using System.IO.Compression;
+
 class Program
 {
-    // Class for the Commands
+    // Command class
     public class CommandClass
     {
         // Command ID
@@ -31,7 +33,7 @@ class Program
     // List of Commands
     static List<CommandClass> Commandslist = 
     [
-//      new CommandClass(S.N., Command     , Arguments, Tags   , Lists of tags allowed , Function)          ,
+     // new CommandClass(S.N., Command     , Arguments, Tags   , Lists of tags allowed , Function)          ,
         new CommandClass(1   , "show"      , true     , true   , ["-h", "-f", "-a"]    , ShowFolders)       ,
         new CommandClass(2   , "help"      , true     , false  , []                    , Help)              ,
         new CommandClass(3   , "cd"        , true     , false  , []                    , CurrentDirectory)  ,
@@ -94,32 +96,32 @@ class Program
         }
 
         // Is Tag able or not
-        private int _TagAble;
+        private bool _TagAble;
 
         // get and set command
-        public int TagAble
+        public bool TagAble
         {
             get
             { return _TagAble;}
             set
             {
-                if (value == 0 || value == 1)
+                if (value == false || value == true)
                 {
                     _TagAble = value;
                 }
             }
         }
         // Is Arguement able or not
-        private int _ArguementAble;
+        private bool _ArguementAble;
 
         // get and set command
-        public int ArguementAble
+        public bool ArguementAble
         {
             get
             { return _ArguementAble;}
             set
             {
-                if (value == 0 || value == 1)
+                if (value == false || value == true)
                 {
                     _ArguementAble = value;
                 }
@@ -191,358 +193,394 @@ class Program
         public CommandClass? CommandObject;
     }
 
-    static void ShowFolders(Instructions I)
+    // Function to toggle tags and check for validity
+    static Dictionary<string, bool> TagsChecker(Instructions I, string[] Tags)
     {
-        string dir = "";
-        int ToggleHiddenDirectories = 0;
-        int ToggleFiles = 0;
-        int ToggleFoldersandFiles = 0;
-
-        // Tags toggler and checker
-        foreach (string tag in I.TagsID)
+        Dictionary<string, bool> ValidTags = new();
+        
+        // Initialize all tags to false
+        foreach (string tag in Tags)
         {
-            switch (tag)
-            {
-                case "-h":
-                    ToggleHiddenDirectories = 1;
-                    break;
-
-                case "-f":
-                    ToggleFiles = 1;
-                    break;
-
-                case "-a":
-                    ToggleFoldersandFiles = 1; // Also shows the files and folders in the directory 
-                    break;
-                
-                default:
-                    I.ErrMessage = "Invalid Tags";
-                    I.ErrCode = 1;
-                    return;
-            }
+            ValidTags[tag] = false;
         }
 
-        // Arguments Count checker
-        if (I.ArgumentsCount > 1)
+        // If the Intrsuctions is not tagable and has tags, return an error
+        if (I.TagAble == false && I.TagCount > 0)
         {
-            I.ErrMessage = "To many Arguments";
+            I.ErrMessage = "Not a Flagable";
             I.ErrCode = 1;
-            return;
+            return ValidTags;
         }
         else
         {
-            if (I.ArguementAble == 1 && I.ArgumentsCount == 1)
+            // Check for valid tags and toggle them
+            foreach (string tag in I.TagsID)
             {
-                dir = I.Arguments[0];
-            }
-            else
-            {
-                dir = Directory.GetCurrentDirectory();
-            }          
-        }
-        try {
-            string[] folders;
-            if (ToggleFiles == 0)
-            {
-                folders = Directory.GetDirectories(dir);
-            }
-            else
-            {
-                folders = Directory.GetFiles(dir);
-            }
+                if (!ValidTags.ContainsKey(tag))
+                {
+                    I.ErrMessage = "Invalid Tags";
+                    I.ErrCode = 1;
+                    return ValidTags;
+                }
 
-            if (folders.Length == 0 || folders == null)
-            {
-                if (ToggleFiles == 0)
-                {
-                    Console.WriteLine("No folders");
-                }
-                else if (ToggleFoldersandFiles == 1)
-                {
-                    Console.WriteLine("No files or folders");
-                }
-                else
-                {
-                    Console.WriteLine("No files");
-                }
-            }            
-
-            if (ToggleFoldersandFiles == 1)
-            {
-                string[]? files = Directory.GetFiles(dir);
-
-                // If folders is null, use an empty array instead, use ?? for nullable coalescing operator
-                folders = (folders ?? Array.Empty<string>()).Concat(files).ToArray();
-            }
-
-            // If folders is null, use an empty array instead, use ?? for nullable coalescing operator
-            foreach (string? folder in (folders ?? Array.Empty<string>()))
-            {
-                FileAttributes attributes = File.GetAttributes(folder);
-                int HiddenFolder = ((attributes & FileAttributes.Hidden) != 0) ? 1 : 0;
-
-                if (HiddenFolder == 0)
-                {
-                    if((attributes & FileAttributes.Directory) != 0)
-                    {
-                        Console.WriteLine(".\\" + Path.GetFileName(folder));
-                    }
-                    else
-                    {
-                        Console.WriteLine(Path.GetFileName(folder));
-                    }
-                }
-                else if (HiddenFolder == 1 && ToggleHiddenDirectories == 0)
-                {
-                    continue;
-                }
-                else if (HiddenFolder == 1 && ToggleHiddenDirectories == 1)
-                {
-                    if ((attributes & FileAttributes.Directory) != 0)
-                    {
-                        Console.WriteLine(".\\" + Path.GetFileName(folder));
-                    }
-                    else
-                    {
-                        Console.WriteLine(Path.GetFileName(folder));
-                    }
-                }
+                ValidTags[tag] = true;
             }
         }
-        catch (DirectoryNotFoundException)
+
+        return ValidTags;
+    }
+
+    static void ArgumentsChecker(Instructions I, int MinArgs, int MaxArgs)
+    {
+        if (!I.ArguementAble && I.ArgumentsCount > 0)
         {
-            I.ErrMessage = "Directory not found";
+            I.ErrMessage = "Not an Arguementable!";
             I.ErrCode = 1;
+            return;
         }
-        catch (UnauthorizedAccessException)
+
+        if (I.ArgumentsCount < MinArgs)
         {
-            I.ErrMessage = "Unauthorized access to file or directory";
+            I.ErrMessage = "Too few Arguments!";
             I.ErrCode = 1;
+            return;
         }
-        catch (IOException)
+
+        if (MaxArgs != -1 && I.ArgumentsCount > MaxArgs)
         {
-            I.ErrMessage = "I/O error occurred";
+            I.ErrMessage = "Too many Arguments!";
             I.ErrCode = 1;
         }
     }
 
+    static void ErrorProvider(Instructions I, string errmess, int errcode = 1)
+    {
+        I.ErrMessage = errmess;
+        I.ErrCode = errcode;
+        return;
+    }
+
+    static void ShowFolders(Instructions I)
+    {
+        // Tags toggler and checker
+        var Tags = TagsChecker(I, ["-h", "-f", "-a"]);
+
+        // Toggle variables for tags
+        bool showAll = Tags["-a"];
+        bool showFiles = Tags["-f"];
+        bool showHidden = Tags["-h"];
+
+        // Arguments Count checker
+        ArgumentsChecker(I, 0, 1); // minargs = 0, maxargs = 1
+
+        // If there is an error in the instructions, return early
+        if (I.ErrCode == 1)
+            return;
+
+        // Determine the directory to show based on the arguments
+        string dir = 
+            (I.ArguementAble == true && I.ArgumentsCount == 1) 
+            ? I.Arguments[0] : Directory.GetCurrentDirectory();
+
+        try 
+        {
+            string[] folders;
+            
+            // If showFiles is true, get files, otherwise get directories
+            folders = (showFiles) ? Directory.GetFiles(dir) : Directory.GetDirectories(dir);
+            
+            // If showAll is true, get both files and directories
+            folders = (showAll) ? Directory.GetFileSystemEntries(dir) : folders;
+
+            // If the folders array is null, use an empty array instead, and filter out any null or whitespace entries
+            folders = (folders ?? Array.Empty<string>()).Where(f => !string.IsNullOrWhiteSpace(f)).ToArray();
+
+            // bool to check whether anything has printed or not
+            bool hasPrinted = false;
+
+            // If folders is null, use an empty array instead, use ?? for nullable coalescing operator
+            foreach (string? folder in (folders))
+            {
+                // Check whether the current folder is hidden or not
+                if ((!((File.GetAttributes(folder) & FileAttributes.Hidden) != 0)) || (((File.GetAttributes(folder) & FileAttributes.Hidden) != 0) && showHidden))
+                {
+                    // Print the folder name with a prefix ".\" if it's a directory
+                    Console.WriteLine(
+                        (File.GetAttributes(folder) & FileAttributes.Directory) != 0 
+                        ? ".\\" + Path.GetFileName(folder) 
+                        : Path.GetFileName(folder)
+                    );
+                    hasPrinted = true;
+                }
+                else
+                {
+                    // If the folder is hidden and showHidden is false, skip printing it
+                    continue;
+                }
+            }
+
+            if (!hasPrinted)
+            {
+                if (showFiles)
+                    Console.WriteLine((showHidden) ? "No hidden files" : "No files");
+                else if (showAll)
+                    Console.WriteLine((showHidden) ? "No hidden files or folders" : "No files or folders");
+                else
+                    Console.WriteLine((showHidden) ? "No hidden folders" : "No folders");
+            }
+        }
+        catch(DirectoryNotFoundException)
+        {
+            ErrorProvider(I, "No such directory: " + Path.GetFullPath(I.Arguments[0]));
+        }
+        catch (Exception em)
+        {
+            ErrorProvider(I, em.Message);
+        }        
+    }
+
     static void Help(Instructions I)
     {
-        string help_cmd = I.ErrMessage;
+        // Tags toggler and checker
+        var Tags = TagsChecker(I, []);
+
+        if (I.ErrCode == 1)
+            return;
+
+        // Use "Bettle" in condition of nothing passed
+        string help_cmd = I.ArgumentsCount > 0 ? I.Arguments[0] : "Bettle";
         string Errmessage = "";
+
         switch (help_cmd)
         {
             case "show":
-                Errmessage = "Helping with the show!";  
+                Errmessage = 
+                    "show: \n" +
+                    " tags: -h -f -a \n" + 
+                    " >>> show: displays all folders or files present on the current directory \n" + 
+                    " >>> show <FilePath>: displays all folders or files present on the file path written \n" + 
+                    " -h: is for hidden directories or files but normal directories or files are also displayed \n" + 
+                    " -f: is for files \n" + 
+                    " -a: is for displaying both folders and files \n" + 
+                    " Tags can be joined as -h -f means both hidden and files which mean hidden files and non - hidden files";
+
                 break;
+
+            case "cd":
+                Errmessage =
+                    "cd: \n" +
+                    " tags: null\n" +
+                    " >>> cd : displays the absolute path of the current directory\n" +
+                    " >>> cd <FilePath>`: changes the cd to that FilePath, and if the FilePath does not exists ask the user to create one or not";
+
+                break;
+            
+            case "create":
+                Errmessage =
+                    "create: \n" +
+                    " tags: -h -f\n" +
+                    " -h: is for hidden directories or file\n" +
+                    " -f: is for file\n" +
+                    " >>> create <Folder_Name>: create a folder with name specified\n" +
+                    " Wild - Card Entry: & could be used to create a file while having requested for folders and vice versa\n" +
+                    " \"Hello\\h1\\h2\": command is able to create a folder naming `Hello` and then `h1` under `Hello` and then `h2` under `h1` \n" +
+                    " Tags can be joined as -h -f means both hidden and files which mean hidden file\n" +
+                    " >>> create &&Hello.py creates a file named &Hello.py\n" +
+                    " The current code can not create `&Hello` and `&Hello.py` at once in one line";
+
+                break;
+
+            case "murder":
+                Errmessage =    
+                    "murder: \n" + 
+                    " tags: -f\n" +
+                    " >>> murder <Folder_Name>: rmeove the folder with name specified\n" +
+                    " Wild - Card Entry: & could be used to remove a file while having requested for folders and vice versa\n" +
+                    " -f: is for file\n" +
+                    " Hello\\h1\\h2`: command is able to remove a folder naming Hello and then h1 under Hello and then h2 under h1";
+
+                break;
+
+            case "stage":
+                Errmessage = 
+                    "stage: \n" +
+                    " tags: -s, -c, -r\n" +
+                    " stage <File_Path>: include the file name at the stage beforing checking for any repition\n" +
+                    " -s: display all the files present at the stage\n" +
+                    " -c: clears all the files present at the stage\n" +
+                    " -r: remove the file or folder from the stage\n" +
+                    " Remember we can also stage a file or folder not existing at all, so we can stage them";
+
+                break;
+
+            case "move":
+                Errmessage = 
+                    "move: \n" +
+                    " tags: -r\n" +
+                    " move <Source_path> <Destination_path>: move the directory from source path to dest. path\n" +
+                    " move &<File_path> <Destination_path>: move the file from source path to dest. path\n" +
+                    " move &<File_path> &<Destination_path>: rename the file from file path to dest. path\n" +
+                    " -r: Will be used to destroy the file present at the destination";
+
+                break;
+
             case "Bettle":
-                Errmessage = "Helping with the Bettle!";
-                break;    
-            case "Not a Flagable":
-                Errmessage = "Not a Tagable Command";
-                break; 
-            case "Not a Arguementable":
-                Errmessage = "Not an Arguementable Command";
-                break; 
-            case "Not a Tag":
-                Errmessage = "Not a tag supposed";
-                break;    
-            case "Use Default":
-                Errmessage = "Using Defaults";
-                break;          
-            default:
-                Errmessage = "";
+                Errmessage = "Available commands:\n" + 
+                " show,\n" + 
+                " help,\n" + 
+                " cd,\n" + 
+                " create,\n" + 
+                " murder,\n" + 
+                " stage,\n" + 
+                " move";
                 break;
         }
+
         Console.WriteLine(Errmessage);
     }
 
     static void CurrentDirectory(Instructions I)
     {
-        // Checks whether the Tags are present any how
-        if (I.TagAble == 1 || I.TagCount != 0 || I.TagsID.Count != 0)
-        {
-            I.ErrMessage = "Not a Flagable";
-            I.ErrCode = 1;
+        // Tags toggler and checker
+        var Tags = TagsChecker(I, []);
+
+        // Arguements not less than 0 and not greater than 1
+        ArgumentsChecker(I, 0, 1);
+
+        // Checks for any error in TagsChecker and Arguements
+        if (I.ErrCode == 1)
             return;
-        }
-        // Checks whether any arguemtent is present or not
-            else if (I.ArguementAble == 1 && I.ArgumentsCount > 0 && I.Arguments.Count > 0 && I.ArgumentsCount < 2 && I.Arguments.Count < 2)
+
+        // Checks whether any arguement is present or not
+        else if (I.ArguementAble == true && I.ArgumentsCount == 1)
         {
             try {
+                // Set the cd to the Arguments passed
                 Directory.SetCurrentDirectory(I.Arguments[0]);
+                // Display the cd
                 Console.WriteLine("Current Directory: " + Directory.GetCurrentDirectory());
             }
             catch (DirectoryNotFoundException)
             {
-                Console.WriteLine("Directory not found");
-                Console.WriteLine("Would you like to create the directory? (y/n)");
+                // Inquiring the user`bout whether to create the directory  
+                Console.Write("Directory not found!\n Would you like to create the directory (y/n)? ");
+                // Getting the response from the user trimming and lower-casing
                 string? response = Console.ReadLine()?.Trim().ToLower();
+                // if user enters Y, y, yes or Yes, Make the dir
                 if (response == "y" || response == "yes")
-                {
                     MakeDirectory(I);
-                }
                 else
-                {
                     return;
-                }
             }
+            // Unauthorized access
             catch (UnauthorizedAccessException)
             {
-                I.ErrMessage = "Unauthorized access to file or directory";
-                I.ErrCode = 1;
+                ErrorProvider(I, "Unauthorized access to file or directory!");
             }
+            // IO Exception
             catch (IOException)
             {
-                I.ErrMessage = "I/O error occurred";
-                I.ErrCode = 1;
+                ErrorProvider(I, "I/O error occurred!");
+            }
+            catch (Exception em)
+            {
+                ErrorProvider(I, em.Message);
             }
         }
-        else
+        else if (I.ArgumentsCount == 0)
         {
+            // Getting the cd
             Console.WriteLine(Directory.GetCurrentDirectory());
         }    
     }
 
     static void MakeDirectory(Instructions I)
     {
-        int ToggleHiddenDirectory = 0;
-        int ToggleFile = 0;
-
         // Tags toggler and checker
-        foreach (string tag in I.TagsID)
-        {
-            switch (tag)
-            {
-                case "-h":
-                    ToggleHiddenDirectory = 1;
-                    break;
+        var Tags = TagsChecker(I, ["-h", "-f"]);
 
-                case "-f":
-                    ToggleFile = 1;
-                    break;
-                
-                default:
-                    I.ErrMessage = "Invalid Tags";
-                    I.ErrCode = 1;
-                    return;
-            }
-        }
+        // Toggle variables for tags
+        bool ToggleHiddenDirectory = Tags["-h"];
+        bool ToggleFile = Tags["-f"];
+
+        // Arguments Count checker
+        ArgumentsChecker(I, 1, -1); // minargs = 1, maxargs = INF
+
+        // If there is an error in the instructions, return early
+        if (I.ErrCode == 1)
+            return;
 
         // This is from where the commands starts
-        for (int i = 0; i < I.Arguments.Count; i++)
+        for (int i = 0; i < I.ArgumentsCount; i++)
         {
-            try 
+            try
             {
-                string file;
+                // Wild - card entry "&" (for creating a file) for subString index
+                int wildCard = I.Arguments[i].StartsWith("&") ? 1 : 0;
 
-                // If the passed argument is with a token & (for creating a file)
-                if (I.Arguments[i].StartsWith("&"))
+                // File is set to Full Path of args[i]
+                string file = Path.GetFullPath(I.Arguments[i].Substring(wildCard));
+
+                // Creation of File on ToggleFile or WildCard
+                if (ToggleFile ^ (wildCard == 1))
                 {
-                    // Combines current directory with file name and pass it on File Create
-                    if (ToggleFile == 0)
-                    {
-                        file = Path.Combine(Directory.GetCurrentDirectory(), I.Arguments[i].Substring(1));
-                        if (File.Exists(file))
-                        {
-                            Console.WriteLine(I.Arguments[i].Substring(1) + " Already Exists!");
-                        }
-                        else
-                        {
-                            File.Create(file).Dispose();
-                            Console.WriteLine(I.Arguments[i].Substring(1) + " Created!");
-                        }
-                    }
-                    else
-                    {
-                        file = Path.Combine(Directory.GetCurrentDirectory(), I.Arguments[i].Substring(1));
-                        if (!Directory.Exists(file))
-                        {
-                            Console.WriteLine(Directory.CreateDirectory(file) + " created!");
-                        }
-                        else
-                        {
-                            Console.WriteLine(file + " Already Exists!");
-                        }
-                    }
+                    // Create File if not already exists
+                    if (!File.Exists(file)) File.Create(file).Dispose();
+                    Console.WriteLine(I.Arguments[i].Substring(wildCard) + (File.Exists(file) ? " Already Exists!" : " Created!"));
                 }
                 else
                 {
-                    if (ToggleFile == 0)
-                    {
-                        file = Path.Combine(Directory.GetCurrentDirectory(), I.Arguments[i]);
-                        if (!Directory.Exists(file))
-                        {
-                            Console.WriteLine(Directory.CreateDirectory(file) + " created!");
-                        }
-                        else
-                        {
-                            Console.WriteLine(file + " Already Exists!");
-                        }
-                    }
+                    // Create Dir if not already exists
+                    if (Directory.Exists(file))
+                        Console.WriteLine(file + " Already Exists!");                        
                     else
-                    {
-                        file = Path.Combine(Directory.GetCurrentDirectory(), I.Arguments[i]);
-                        if (File.Exists(file))
-                        {
-                            Console.WriteLine(I.Arguments[i] + " Already exists!");
-                        }
-                        else
-                        {
-                            File.Create(file).Dispose();
-                            Console.WriteLine(I.Arguments[i] + " Created!");
-                        }
-                    }
+                        Console.WriteLine(Directory.CreateDirectory(file) + " created!");
                 }
 
-                if (ToggleHiddenDirectory == 1)
-                {
+                // Hide if requested
+                if (ToggleHiddenDirectory)
                     File.SetAttributes(file, FileAttributes.Hidden);
-                }
                 
             }
             catch (UnauthorizedAccessException)
             {
-                I.ErrMessage = "Unauthorized access to file or directory";
-                I.ErrCode = 1;
+                ErrorProvider(I,"Unauthorized access to file or directory");
             }
             catch (IOException)
             {
-                I.ErrMessage = "I/O error occurred";
-                I.ErrCode = 1;
+                ErrorProvider(I,"I/O error occurred");
+            }
+            catch(Exception em)
+            {
+                ErrorProvider(I, em.Message);
             }
         }
     }
 
     static void RemoveDirectory(Instructions I)
     {
-        int ToggleFile = 0;
-
         // Tags toggler and checker
-        foreach (string tag in I.TagsID)
-        {
-            switch (tag)
-            {
-                case "-f":
-                    ToggleFile = 1;
-                    break;
-                
-                default:
-                    I.ErrMessage = "Invalid Tags";
-                    I.ErrCode = 1;
-                    return;
-            }
-        }
+        var Tags = TagsChecker(I, ["-f"]);
+
+        // Toggle variables for tags
+        bool ToggleFile = Tags["-f"];
+
+        // Arguments Count checker
+        ArgumentsChecker(I, 1, -1); // minargs = 1, maxargs = INF
+
+        // If there is an error in the instructions, return early
+        if (I.ErrCode == 1)
+            return;
 
         for (int i = 0; i < I.Arguments.Count; i++)
         {
             try
             {
-                // If Wild - Card Enters
+                // Wild - Card entry "&"
                 if (I.Arguments[i].StartsWith("&"))
                 {
                     // Delete the folder or file
-                    if (ToggleFile == 0)
+                    if (ToggleFile == false)
                     {
                         if (File.Exists(I.Arguments[i].Substring(1)))
                         {
@@ -552,16 +590,14 @@ class Program
                         }
                         else
                         {
-                            I.ErrMessage = "File does not exists";
-                            I.ErrCode = 1;
+                            ErrorProvider(I, "File does not exists");
                         }
                     }
                     else
                     {
                         if (!Directory.Exists(I.Arguments[i].Substring(1)))
                         {
-                            I.ErrMessage = "Folder does not exists";
-                            I.ErrCode = 1;
+                            ErrorProvider(I, "Folder does not exists");
                         }
                         else
                         {
@@ -587,7 +623,7 @@ class Program
                 else
                 {
                     // Delete the folder or file
-                    if (ToggleFile == 1)
+                    if (ToggleFile == true)
                     {
                         // Delete the files
                         if (File.Exists(I.Arguments[i]))
@@ -597,16 +633,14 @@ class Program
                         }
                         else
                         {
-                            I.ErrMessage = "File does not exists";
-                            I.ErrCode = 1;
+                            ErrorProvider(I, "File does not exists");
                         }
                     }
                     else
                     {
                         if (!Directory.Exists(I.Arguments[i]))
                         {
-                            I.ErrMessage = "Folder does not exists";
-                            I.ErrCode = 1;
+                            ErrorProvider(I, "Folder does not exists");
                         }
                         else
                         {
@@ -631,62 +665,36 @@ class Program
             }
             catch (FileNotFoundException)
             {
-                I.ErrMessage = "File does not exists";
-                I.ErrCode = 1;
+                ErrorProvider(I, "File does not exists");
             }
             catch (UnauthorizedAccessException)
             {
-                I.ErrMessage = "Unauthorized access to file or directory";
-                I.ErrCode = 1;
+                ErrorProvider(I, "Unauthorized access to file or directory");
             }
             catch (IOException)
             {
-                I.ErrMessage = "I/O error occurred";
-                I.ErrCode = 1;
+                ErrorProvider(I, "I/O error occurred");
+            }
+            catch (Exception em)
+            {
+                ErrorProvider(I, em.Message);
             }
         }
     }
 
     static void Stage(Instructions I)
     {
-        // Tags
-        bool ToggleShow = false;
-        bool ToggleClear = false;
-        bool ToggleMake = false;
-        bool ToggleRemove = false;
-        bool ToggleDelete = false;
-
         // Tags toggler and checker
-        foreach (string tag in I.TagsID)
-        {
-            switch (tag)
-            {
-                case "-s":
-                    ToggleShow = true;
-                    break;
+        var Tags = TagsChecker(I, ["-s", "-c", "-m", "-r", "-d"]);
 
-                case "-c":
-                    ToggleClear = true;
-                    break;
+        if (I.ErrCode == 1)
+            return;
 
-                case "-m":
-                    ToggleMake = true;
-                    break;
-
-                case "-r":
-                    ToggleRemove = true;
-                    break;
-
-                case "-d":
-                    ToggleDelete = true;
-                    break;
-                
-                default:
-                    I.ErrMessage = "Invalid Tags";
-                    I.ErrCode = 1;
-                    return;
-            }
-        }
+        bool ToggleShow = Tags["-s"];
+        bool ToggleClear = Tags["-c"];
+        bool ToggleMake = Tags["-m"];
+        bool ToggleRemove = Tags["-r"];
+        bool ToggleDelete = Tags["-d"];
 
         if (ToggleShow)
         {
@@ -817,23 +825,13 @@ class Program
 
     static void Move(Instructions I)
     {
-        bool ToggleCopy = false;
-
         // Tags toggler and checker
-        foreach (string tag in I.TagsID)
-        {
-            switch (tag)
-            {
-                case "-c":
-                    ToggleCopy = true;
-                    break;
-                
-                default:
-                    I.ErrMessage = "Invalid Tags";
-                    I.ErrCode = 1;
-                    return;
-            }
-        }
+        var Tags = TagsChecker(I, ["-r"]);
+
+        if (I.ErrCode == 1)
+            return;
+
+        bool ToggleRemove = Tags["-r"];
 
         // Check whether the number of arguments is even or not, because we need pairs of source and destination paths
         if (I.ArgumentsCount % 2 != 0)
@@ -941,7 +939,7 @@ class Program
                 break;
             if (command != null)
             {
-                TakeActions(ValidateCommands(command));
+                TakeActions(ValidateCommands(command));               
             }
             else
             {
@@ -949,7 +947,6 @@ class Program
             }
         }
         while (true);
-        Console.WriteLine("Bettle Closing!");
     }
 
     static Instructions ValidateCommands(string command)
@@ -1097,7 +1094,7 @@ class Program
                     else
                     {
                         I.Arguments.Clear();
-                        I.ArguementAble = 0;
+                        I.ArguementAble = false;
                         I.ArgumentsCount = 0;
                         I.ErrMessage = "Invalid Arguement";
                         I.ErrCode = 1;
@@ -1117,8 +1114,8 @@ class Program
         // Filling the values of object
         I.IsCommand = IsCommand;
         I.CommandID = CommandID;
-        I.TagAble = (TagCount != 0) ? 1 : 0;
-        I.ArguementAble = (ArgumentsCount != 0) ? 1 : 0;
+        I.TagAble = CurrentCommand?.TagAble ?? false;
+        I.ArguementAble = CurrentCommand?.ArgumentAble ?? false;
         I.TagCount = TagCount;
         I.ArgumentsCount = ArgumentsCount;
         I.CommandObject = CurrentCommand;
@@ -1129,17 +1126,23 @@ class Program
     static void TakeActions(Instructions I)
     {
         if (I.CommandObject == null)
-        {
             return;
+
+        if (I.ErrCode == 0)
+        {
+            try
+            {
+                I.CommandObject.Command(I);
+            }
+            catch (Exception ex)
+            {
+                I.ErrMessage = ex.Message;
+                I.ErrCode = 1;
+            }
         }
 
         if (I.ErrCode == 1)
-        {
-            Help(I);
-            return;
-        }
-
-        I.CommandObject.Command(I); 
+            Console.WriteLine(I.ErrMessage);
     }
 
     static void Main()
